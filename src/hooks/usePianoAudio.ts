@@ -16,8 +16,14 @@ const noteFrequencies: Record<string, number> = {
   'C2': 523.25,
 };
 
+interface ActiveOscillator {
+  oscillator: OscillatorNode;
+  gainNode: GainNode;
+}
+
 export const usePianoAudio = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
+  const activeOscillatorsRef = useRef<Map<string, ActiveOscillator>>(new Map());
 
   const getAudioContext = useCallback(() => {
     if (!audioContextRef.current) {
@@ -56,5 +62,71 @@ export const usePianoAudio = () => {
     oscillator.stop(now + attackTime + decayTime + releaseTime);
   }, [getAudioContext]);
 
-  return { playNote };
+  const playChordNote = useCallback((note: string, shouldStop: boolean) => {
+    const frequency = noteFrequencies[note];
+    if (!frequency) return;
+
+    const audioContext = getAudioContext();
+
+    // If stopping, fade out and remove
+    if (shouldStop) {
+      const active = activeOscillatorsRef.current.get(note);
+      if (active) {
+        const now = audioContext.currentTime;
+        const releaseTime = 0.5;
+        
+        active.gainNode.gain.cancelScheduledValues(now);
+        active.gainNode.gain.setValueAtTime(active.gainNode.gain.value, now);
+        active.gainNode.gain.linearRampToValueAtTime(0, now + releaseTime);
+        
+        active.oscillator.stop(now + releaseTime);
+        activeOscillatorsRef.current.delete(note);
+      }
+      return;
+    }
+
+    // If already playing, don't start again
+    if (activeOscillatorsRef.current.has(note)) return;
+
+    // Start new sustained note
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.frequency.value = frequency;
+    oscillator.type = 'sine';
+
+    // Sustained envelope
+    const now = audioContext.currentTime;
+    const attackTime = 0.01;
+    const decayTime = 0.1;
+    const sustainLevel = 0.35;
+
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(0.5, now + attackTime);
+    gainNode.gain.linearRampToValueAtTime(sustainLevel, now + attackTime + decayTime);
+
+    oscillator.start(now);
+    
+    activeOscillatorsRef.current.set(note, { oscillator, gainNode });
+  }, [getAudioContext]);
+
+  const stopAllNotes = useCallback(() => {
+    const audioContext = getAudioContext();
+    const now = audioContext.currentTime;
+    const releaseTime = 0.5;
+
+    activeOscillatorsRef.current.forEach((active) => {
+      active.gainNode.gain.cancelScheduledValues(now);
+      active.gainNode.gain.setValueAtTime(active.gainNode.gain.value, now);
+      active.gainNode.gain.linearRampToValueAtTime(0, now + releaseTime);
+      active.oscillator.stop(now + releaseTime);
+    });
+
+    activeOscillatorsRef.current.clear();
+  }, [getAudioContext]);
+
+  return { playNote, playChordNote, stopAllNotes };
 };
