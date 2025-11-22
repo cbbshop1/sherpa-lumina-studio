@@ -15,6 +15,7 @@ const notes = [
   { note: "A", isBlack: false },
   { note: "A#", isBlack: true },
   { note: "B", isBlack: false },
+  { note: "C2", isBlack: false },
 ];
 
 const PianoKeyboard = () => {
@@ -23,13 +24,18 @@ const PianoKeyboard = () => {
 
   const handleNoteClick = (note: string) => {
     playNote(note);
-    const newActiveNotes = new Set(activeNotes);
-    if (newActiveNotes.has(note)) {
-      newActiveNotes.delete(note);
-    } else {
-      newActiveNotes.add(note);
-    }
-    setActiveNotes(newActiveNotes);
+    
+    // Add to active notes for visual feedback
+    setActiveNotes(prev => new Set([...prev, note]));
+    
+    // Remove after sound duration (410ms to match ADSR envelope)
+    setTimeout(() => {
+      setActiveNotes(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(note);
+        return newSet;
+      });
+    }, 410);
   };
 
   return (
@@ -100,15 +106,9 @@ const PianoKeyboard = () => {
           </div>
 
           <div className="mt-8 text-center">
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-sm text-muted-foreground">
               Active notes: {activeNotes.size > 0 ? Array.from(activeNotes).join(", ") : "None"}
             </p>
-            <button
-              onClick={() => setActiveNotes(new Set())}
-              className="px-6 py-2 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground transition-colors"
-            >
-              Clear All
-            </button>
           </div>
         </div>
       </div>

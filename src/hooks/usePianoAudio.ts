@@ -13,6 +13,7 @@ const noteFrequencies: Record<string, number> = {
   'A': 440.00,
   'A#': 466.16,
   'B': 493.88,
+  'C2': 523.25,
 };
 
 export const usePianoAudio = () => {
