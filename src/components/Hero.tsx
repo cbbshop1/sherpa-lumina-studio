@@ -28,17 +28,6 @@ const Hero = () => {
           From beginner to advanced, master music theory at your own pace.
         </p>
         
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up" style={{ animationDelay: '0.3s' }}>
-          <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 py-6 text-lg rounded-xl glow-blue transition-all hover:scale-105">
-            <Music2 className="w-5 h-5 mr-2" />
-            Start Learning
-          </Button>
-          <Button size="lg" variant="outline" className="border-border bg-card/50 hover:bg-card text-foreground font-semibold px-8 py-6 text-lg rounded-xl backdrop-blur-sm transition-all hover:scale-105">
-            <Zap className="w-5 h-5 mr-2" />
-            Explore Features
-          </Button>
-        </div>
-        
         <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 animate-slide-up" style={{ animationDelay: '0.4s' }}>
           <div className="glass-effect p-6 rounded-2xl hover:scale-105 transition-transform duration-300">
             <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center mb-4 mx-auto">

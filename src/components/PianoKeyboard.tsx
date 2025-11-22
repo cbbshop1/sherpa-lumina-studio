@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { usePianoAudio } from "@/hooks/usePianoAudio";
 
 const notes = [
   { note: "C", isBlack: false },
@@ -18,8 +19,10 @@ const notes = [
 
 const PianoKeyboard = () => {
   const [activeNotes, setActiveNotes] = useState<Set<string>>(new Set());
+  const { playNote } = usePianoAudio();
 
   const handleNoteClick = (note: string) => {
+    playNote(note);
     const newActiveNotes = new Set(activeNotes);
     if (newActiveNotes.has(note)) {
       newActiveNotes.delete(note);
@@ -52,8 +55,8 @@ const PianoKeyboard = () => {
                   className={cn(
                     "w-16 h-48 rounded-b-lg border-2 transition-all duration-200",
                     activeNotes.has(key.note)
-                      ? "bg-primary border-primary shadow-[0_0_20px_hsl(var(--primary))] translate-y-1"
-                      : "bg-white border-slate-300 hover:bg-slate-100 hover:shadow-lg"
+                      ? "bg-primary border-primary shadow-[0_0_30px_hsl(var(--primary))] translate-y-1 scale-105"
+                      : "bg-white border-slate-300 hover:bg-slate-50 hover:shadow-lg"
                   )}
                 >
                   <span className={cn(
@@ -67,7 +70,7 @@ const PianoKeyboard = () => {
             </div>
 
             {/* Black keys */}
-            <div className="absolute inset-0 flex justify-center items-start pt-2">
+            <div className="absolute inset-0 flex justify-center items-start pt-2 pointer-events-none">
               <div className="flex">
                 {notes.map((key, index) => {
                   if (!key.isBlack) return <div key={index} className="w-16" />;
@@ -77,7 +80,7 @@ const PianoKeyboard = () => {
                       key={key.note}
                       onClick={() => handleNoteClick(key.note)}
                       className={cn(
-                        "w-10 h-32 rounded-b-lg border-2 -ml-5 z-10 transition-all duration-200",
+                        "w-10 h-32 rounded-b-lg border-2 -ml-5 z-10 transition-all duration-200 pointer-events-auto",
                         activeNotes.has(key.note)
                           ? "bg-secondary border-secondary shadow-[0_0_20px_hsl(var(--secondary))] translate-y-1"
                           : "bg-slate-900 border-slate-950 hover:bg-slate-800 hover:shadow-lg"
