@@ -21,7 +21,12 @@ const notes = [
   { note: "C2", isBlack: false },
 ];
 
-const PianoKeyboard = () => {
+interface PianoKeyboardProps {
+  highlightedNotes?: string[];
+  libraryChordName?: string;
+}
+
+const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboardProps) => {
   const [activeNotes, setActiveNotes] = useState<Set<string>>(new Set());
   const [mode, setMode] = useState<"single" | "chord">("single");
   const [chordInfo, setChordInfo] = useState<ChordInfo | null>(null);
@@ -125,6 +130,8 @@ const PianoKeyboard = () => {
                       ? mode === "chord"
                         ? "bg-accent border-accent shadow-[0_0_30px_hsl(var(--accent))] translate-y-1 scale-105"
                         : "bg-primary border-primary shadow-[0_0_30px_hsl(var(--primary))] translate-y-1 scale-105"
+                      : highlightedNotes.includes(key.note)
+                      ? "bg-secondary border-secondary shadow-[0_0_20px_hsl(var(--secondary))]"
                       : "bg-white border-slate-300 hover:bg-slate-50 hover:shadow-lg"
                   )}
                 >
@@ -156,6 +163,8 @@ const PianoKeyboard = () => {
                           ? mode === "chord"
                             ? "bg-accent border-accent shadow-[0_0_20px_hsl(var(--accent))] translate-y-1"
                             : "bg-secondary border-secondary shadow-[0_0_20px_hsl(var(--secondary))] translate-y-1"
+                          : highlightedNotes.includes(key.note)
+                          ? "bg-muted border-muted shadow-[0_0_15px_hsl(var(--muted))]"
                           : "bg-slate-900 border-slate-950 hover:bg-slate-800 hover:shadow-lg"
                       )}
                     >
@@ -174,8 +183,24 @@ const PianoKeyboard = () => {
             </div>
           </div>
 
+          {/* Library Chord Display */}
+          {libraryChordName && highlightedNotes.length > 0 && (
+            <div className="mt-8">
+              <div className="glass-effect p-6 rounded-2xl border-2 border-secondary/20 animate-fade-in">
+                <div className="text-center">
+                  <h3 className="text-3xl md:text-4xl font-bold gradient-text mb-2">
+                    {libraryChordName}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Notes: {highlightedNotes.join(" - ")}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Chord Display */}
-          {mode === "chord" && (
+          {mode === "chord" && !libraryChordName && (
             <div className="mt-8">
               {chordInfo && chordInfo.notes.length > 0 ? (
                 <div className="glass-effect p-6 rounded-2xl border-2 border-accent/20 animate-fade-in">
