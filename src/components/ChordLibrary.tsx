@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Play } from "lucide-react";
 
 const KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -39,9 +39,10 @@ const getChordNotes = (root: string): Chord[] => {
 interface ChordLibraryProps {
   onChordSelect: (notes: string[], chordName: string) => void;
   selectedChordNotes: string[];
+  onPlayChord: (notes: string[]) => void;
 }
 
-const ChordLibrary = ({ onChordSelect, selectedChordNotes }: ChordLibraryProps) => {
+const ChordLibrary = ({ onChordSelect, selectedChordNotes, onPlayChord }: ChordLibraryProps) => {
   const [selectedKey, setSelectedKey] = useState("C");
   const chords = getChordNotes(selectedKey);
 
@@ -90,25 +91,38 @@ const ChordLibrary = ({ onChordSelect, selectedChordNotes }: ChordLibraryProps) 
             {chords.map((chord) => {
               const isSelected = isChordSelected(chord.notes);
               return (
-                <Button
-                  key={chord.name}
-                  variant={isSelected ? "default" : "outline"}
-                  onClick={() => handleChordClick(chord)}
-                  className="h-auto py-4 flex flex-col items-center gap-2 transition-all duration-200"
-                >
-                  <BookOpen className="w-4 h-4" />
-                  <div className="flex flex-col items-center">
-                    <span className="font-bold">
-                      {selectedKey}{chord.suffix}
+                <div key={chord.name} className="relative group">
+                  <Button
+                    variant={isSelected ? "default" : "outline"}
+                    onClick={() => handleChordClick(chord)}
+                    className="w-full h-auto py-4 flex flex-col items-center gap-2 transition-all duration-200"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    <div className="flex flex-col items-center">
+                      <span className="font-bold">
+                        {selectedKey}{chord.suffix}
+                      </span>
+                      <span className="text-xs opacity-80">
+                        {chord.name}
+                      </span>
+                    </div>
+                    <span className="text-xs opacity-60">
+                      {chord.notes.join(" - ")}
                     </span>
-                    <span className="text-xs opacity-80">
-                      {chord.name}
-                    </span>
-                  </div>
-                  <span className="text-xs opacity-60">
-                    {chord.notes.join(" - ")}
-                  </span>
-                </Button>
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onPlayChord(chord.notes);
+                    }}
+                    className="absolute -top-2 -right-2 w-8 h-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                    title="Play chord"
+                  >
+                    <Play className="w-3 h-3" />
+                  </Button>
+                </div>
               );
             })}
           </div>
