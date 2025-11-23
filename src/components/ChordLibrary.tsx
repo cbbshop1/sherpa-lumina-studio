@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BookOpen, Play } from "lucide-react";
+import { BookOpen, Play, Heart } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -40,15 +41,27 @@ interface ChordLibraryProps {
   onChordSelect: (notes: string[], chordName: string) => void;
   selectedChordNotes: string[];
   onPlayChord: (notes: string[]) => void;
+  onAddFavorite: (name: string, notes: string[]) => void;
+  isFavorite: (name: string) => boolean;
 }
 
-const ChordLibrary = ({ onChordSelect, selectedChordNotes, onPlayChord }: ChordLibraryProps) => {
+const ChordLibrary = ({ onChordSelect, selectedChordNotes, onPlayChord, onAddFavorite, isFavorite }: ChordLibraryProps) => {
+  const { toast } = useToast();
   const [selectedKey, setSelectedKey] = useState("C");
   const chords = getChordNotes(selectedKey);
 
   const handleChordClick = (chord: Chord) => {
     const chordName = `${selectedKey}${chord.suffix}`;
     onChordSelect(chord.notes, chordName);
+  };
+
+  const handleAddFavorite = (chord: Chord) => {
+    const chordName = `${selectedKey}${chord.suffix}`;
+    onAddFavorite(chordName, chord.notes);
+    toast({
+      title: "Chord saved!",
+      description: `${chordName} added to favorites`,
+    });
   };
 
   const isChordSelected = (notes: string[]) => {
@@ -90,6 +103,8 @@ const ChordLibrary = ({ onChordSelect, selectedChordNotes, onPlayChord }: ChordL
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {chords.map((chord) => {
               const isSelected = isChordSelected(chord.notes);
+              const chordName = `${selectedKey}${chord.suffix}`;
+              const isFav = isFavorite(chordName);
               return (
                 <div key={chord.name} className="relative group">
                   <Button
@@ -110,18 +125,33 @@ const ChordLibrary = ({ onChordSelect, selectedChordNotes, onPlayChord }: ChordL
                       {chord.notes.join(" - ")}
                     </span>
                   </Button>
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onPlayChord(chord.notes);
-                    }}
-                    className="absolute -top-2 -right-2 w-8 h-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                    title="Play chord"
-                  >
-                    <Play className="w-3 h-3" />
-                  </Button>
+                  <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      size="icon"
+                      variant="secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPlayChord(chord.notes);
+                      }}
+                      className="w-8 h-8 rounded-full shadow-lg"
+                      title="Play chord"
+                    >
+                      <Play className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant={isFav ? "default" : "secondary"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddFavorite(chord);
+                      }}
+                      className="w-8 h-8 rounded-full shadow-lg"
+                      title={isFav ? "Already in favorites" : "Add to favorites"}
+                      disabled={isFav}
+                    >
+                      <Heart className={`w-3 h-3 ${isFav ? "fill-current" : ""}`} />
+                    </Button>
+                  </div>
                 </div>
               );
             })}

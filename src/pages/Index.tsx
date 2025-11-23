@@ -2,13 +2,16 @@ import { useState } from "react";
 import Hero from "@/components/Hero";
 import PianoKeyboard from "@/components/PianoKeyboard";
 import ChordLibrary from "@/components/ChordLibrary";
+import ChordProgressionBuilder from "@/components/ChordProgressionBuilder";
 import ScaleExplorer from "@/components/ScaleExplorer";
 import { usePianoAudio } from "@/hooks/usePianoAudio";
+import { useChordProgressions, SavedChord } from "@/hooks/useChordProgressions";
 
 const Index = () => {
   const [highlightedNotes, setHighlightedNotes] = useState<string[]>([]);
   const [libraryChordName, setLibraryChordName] = useState<string>("");
   const { playChordNote, stopAllNotes } = usePianoAudio();
+  const { favorites, addFavorite, isFavorite } = useChordProgressions();
 
   const handleChordSelect = (notes: string[], chordName: string) => {
     setHighlightedNotes(notes);
@@ -32,6 +35,31 @@ const Index = () => {
     }, 2000);
   };
 
+  const handlePlayProgression = (chords: SavedChord[], duration: number) => {
+    stopAllNotes();
+    
+    chords.forEach((chord, index) => {
+      setTimeout(() => {
+        // Stop previous chord
+        if (index > 0) {
+          stopAllNotes();
+        }
+        
+        // Play current chord with strum effect
+        chord.notes.forEach((note, noteIndex) => {
+          setTimeout(() => {
+            playChordNote(note, false);
+          }, noteIndex * 50);
+        });
+      }, index * duration);
+    });
+
+    // Stop all notes after the last chord
+    setTimeout(() => {
+      stopAllNotes();
+    }, chords.length * duration);
+  };
+
   return (
     <div className="min-h-screen">
       <Hero />
@@ -43,6 +71,12 @@ const Index = () => {
         onChordSelect={handleChordSelect}
         selectedChordNotes={highlightedNotes}
         onPlayChord={handlePlayChord}
+        onAddFavorite={addFavorite}
+        isFavorite={isFavorite}
+      />
+      <ChordProgressionBuilder 
+        onPlayProgression={handlePlayProgression}
+        favorites={favorites}
       />
       <ScaleExplorer />
     </div>
