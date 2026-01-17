@@ -32,6 +32,14 @@ export const useMidiKeyboard = ({
   const [error, setError] = useState<string | null>(null);
   
   const midiAccessRef = useRef<MIDIAccess | null>(null);
+  const onNotePressRef = useRef(onNotePress);
+  const onNoteReleaseRef = useRef(onNoteRelease);
+
+  // Keep refs updated with latest callbacks
+  useEffect(() => {
+    onNotePressRef.current = onNotePress;
+    onNoteReleaseRef.current = onNoteRelease;
+  });
 
   // Check browser support
   useEffect(() => {
@@ -81,7 +89,7 @@ export const useMidiKeyboard = ({
     }
   };
 
-  // Handle MIDI messages
+  // Handle MIDI messages - use refs to always get latest callbacks
   const handleMidiMessage = useCallback((event: MIDIMessageEvent) => {
     if (!enabled) return;
 
@@ -90,17 +98,13 @@ export const useMidiKeyboard = ({
     
     // Note On (0x90) with velocity > 0
     if (command === 0x90 && velocity > 0) {
-      if (onNotePress) {
-        onNotePress(note, velocity);
-      }
+      onNotePressRef.current?.(note, velocity);
     }
     // Note Off (0x80) or Note On with velocity 0
     else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
-      if (onNoteRelease) {
-        onNoteRelease(note);
-      }
+      onNoteReleaseRef.current?.(note);
     }
-  }, [enabled, onNotePress, onNoteRelease]);
+  }, [enabled]);
 
   // Connect to selected device
   useEffect(() => {
