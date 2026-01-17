@@ -1,4 +1,5 @@
 import { useState } from "react";
+import AppNavigation from "@/components/AppNavigation";
 import Hero from "@/components/Hero";
 import PianoKeyboard from "@/components/PianoKeyboard";
 import ChordLibrary from "@/components/ChordLibrary";
@@ -62,23 +63,27 @@ const Index = () => {
 
   return (
     <div className="min-h-screen">
-      <Hero />
-      <PianoKeyboard 
-        highlightedNotes={highlightedNotes} 
-        libraryChordName={libraryChordName}
-      />
-      <ChordLibrary 
-        onChordSelect={handleChordSelect}
-        selectedChordNotes={highlightedNotes}
-        onPlayChord={handlePlayChord}
-        onAddFavorite={addFavorite}
-        isFavorite={isFavorite}
-      />
-      <ChordProgressionBuilder 
-        onPlayProgression={handlePlayProgression}
-        favorites={favorites}
-      />
-      <ScaleExplorer />
+      <AppNavigation />
+      {/* Add padding for fixed navigation */}
+      <div className="pt-16">
+        <Hero />
+        <PianoKeyboard 
+          highlightedNotes={highlightedNotes} 
+          libraryChordName={libraryChordName}
+        />
+        <ChordLibrary 
+          onChordSelect={handleChordSelect}
+          selectedChordNotes={highlightedNotes}
+          onPlayChord={handlePlayChord}
+          onAddFavorite={addFavorite}
+          isFavorite={isFavorite}
+        />
+        <ChordProgressionBuilder 
+          onPlayProgression={handlePlayProgression}
+          favorites={favorites}
+        />
+        <ScaleExplorer />
+      </div>
     </div>
   );
 };
