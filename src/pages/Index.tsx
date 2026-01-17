@@ -30,9 +30,11 @@ const Index = () => {
       }, index * 50); // 50ms delay between each note
     });
 
-    // Stop the chord after 2 seconds
+    // Stop the chord and clear highlighting after 2 seconds
     setTimeout(() => {
       stopAllNotes();
+      setHighlightedNotes([]);
+      setLibraryChordName("");
     }, 2000);
   };
 
@@ -55,9 +57,11 @@ const Index = () => {
       }, index * duration);
     });
 
-    // Stop all notes after the last chord
+    // Stop all notes and clear highlighting after the last chord
     setTimeout(() => {
       stopAllNotes();
+      setHighlightedNotes([]);
+      setLibraryChordName("");
     }, chords.length * duration);
   };
 
