@@ -7,6 +7,8 @@ import { Music, Music2, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MidiSettings from "./MidiSettings";
 import { Badge } from "@/components/ui/badge";
+import InstrumentSelector from "./InstrumentSelector";
+import { InstrumentType } from "@/utils/instrumentSynthesis";
 
 const notes = [
   { note: "C", isBlack: false },
@@ -35,7 +37,15 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
   const [midiDisplayNotes, setMidiDisplayNotes] = useState<string[]>([]);
   const [mode, setMode] = useState<"single" | "chord">("single");
   const [chordInfo, setChordInfo] = useState<ChordInfo | null>(null);
-  const { playNote, playChordNote, playMidiNote, playMidiChordNote, stopAllNotes } = usePianoAudio();
+  const { 
+    playNote, 
+    playChordNote, 
+    playMidiNote, 
+    playMidiChordNote, 
+    stopAllNotes,
+    currentInstrument,
+    setCurrentInstrument
+  } = usePianoAudio();
 
   // MIDI keyboard integration - now receives MIDI note numbers
   const handleMidiNotePress = (midiNote: number, velocity: number) => {
@@ -223,6 +233,15 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
             </div>
           </div>
           
+          {/* Instrument Selector */}
+          <div className="mb-6">
+            <p className="text-sm text-muted-foreground mb-3">Select Instrument</p>
+            <InstrumentSelector
+              selected={currentInstrument}
+              onSelect={setCurrentInstrument}
+            />
+          </div>
+
           {/* Mode Toggle */}
           <div className="flex justify-center gap-2">
             <Button

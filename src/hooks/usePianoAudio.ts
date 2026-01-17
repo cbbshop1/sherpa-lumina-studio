@@ -1,4 +1,10 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { 
+  InstrumentType, 
+  createInstrumentNote, 
+  getInstrumentReleaseTime,
+  getInstrumentAutoStopTime 
+} from '@/utils/instrumentSynthesis';
 
 // Note frequencies for on-screen piano (C4-C5)
 const noteFrequencies: Record<string, number> = {
@@ -22,15 +28,17 @@ const midiNoteToFrequency = (midiNote: number): number => {
   return 440 * Math.pow(2, (midiNote - 69) / 12);
 };
 
-interface ActiveOscillator {
-  oscillator: OscillatorNode;
+interface ActiveNote {
+  oscillators: OscillatorNode[];
   gainNode: GainNode;
+  filterNode?: BiquadFilterNode;
 }
 
 export const usePianoAudio = () => {
+  const [currentInstrument, setCurrentInstrument] = useState<InstrumentType>('piano');
   const audioContextRef = useRef<AudioContext | null>(null);
-  const activeOscillatorsRef = useRef<Map<string, ActiveOscillator>>(new Map());
-  const activeMidiOscillatorsRef = useRef<Map<number, ActiveOscillator>>(new Map());
+  const activeNotesRef = useRef<Map<string, ActiveNote>>(new Map());
+  const activeMidiNotesRef = useRef<Map<number, ActiveNote>>(new Map());
 
   const getAudioContext = useCallback(() => {
     if (!audioContextRef.current) {
@@ -45,30 +53,24 @@ export const usePianoAudio = () => {
     if (!frequency) return;
 
     const audioContext = getAudioContext();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
+    const { oscillators, gainNode, filterNode } = createInstrumentNote(
+      audioContext, 
+      frequency, 
+      currentInstrument,
+      false
+    );
 
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+    // Start all oscillators
+    oscillators.forEach(osc => osc.start());
 
-    oscillator.frequency.value = frequency;
-    oscillator.type = 'sine';
-
-    // ADSR envelope
-    const now = audioContext.currentTime;
-    const attackTime = 0.01;
-    const decayTime = 0.1;
-    const sustainLevel = 0.3;
-    const releaseTime = 0.3;
-
-    gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(0.5, now + attackTime);
-    gainNode.gain.linearRampToValueAtTime(sustainLevel, now + attackTime + decayTime);
-    gainNode.gain.linearRampToValueAtTime(0, now + attackTime + decayTime + releaseTime);
-
-    oscillator.start(now);
-    oscillator.stop(now + attackTime + decayTime + releaseTime);
-  }, [getAudioContext]);
+    // Auto-stop after instrument-specific time
+    const stopTime = getInstrumentAutoStopTime(currentInstrument);
+    setTimeout(() => {
+      oscillators.forEach(osc => {
+        try { osc.stop(); } catch {}
+      });
+    }, stopTime * 1000);
+  }, [getAudioContext, currentInstrument]);
 
   // Play/stop chord note by name (for on-screen piano)
   const playChordNote = useCallback((note: string, shouldStop: boolean) => {
@@ -79,78 +81,63 @@ export const usePianoAudio = () => {
 
     // If stopping, fade out and remove
     if (shouldStop) {
-      const active = activeOscillatorsRef.current.get(note);
+      const active = activeNotesRef.current.get(note);
       if (active) {
         const now = audioContext.currentTime;
-        const releaseTime = 0.5;
+        const releaseTime = getInstrumentReleaseTime(currentInstrument);
         
         active.gainNode.gain.cancelScheduledValues(now);
         active.gainNode.gain.setValueAtTime(active.gainNode.gain.value, now);
         active.gainNode.gain.linearRampToValueAtTime(0, now + releaseTime);
         
-        active.oscillator.stop(now + releaseTime);
-        activeOscillatorsRef.current.delete(note);
+        active.oscillators.forEach(osc => {
+          try { osc.stop(now + releaseTime); } catch {}
+        });
+        activeNotesRef.current.delete(note);
       }
       return;
     }
 
     // If already playing, don't start again
-    if (activeOscillatorsRef.current.has(note)) return;
+    if (activeNotesRef.current.has(note)) return;
 
-    // Start new sustained note
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
+    // Create instrument note
+    const { oscillators, gainNode, filterNode } = createInstrumentNote(
+      audioContext,
+      frequency,
+      currentInstrument,
+      true
+    );
 
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    oscillator.frequency.value = frequency;
-    oscillator.type = 'sine';
-
-    // Sustained envelope
-    const now = audioContext.currentTime;
-    const attackTime = 0.01;
-    const decayTime = 0.1;
-    const sustainLevel = 0.35;
-
-    gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(0.5, now + attackTime);
-    gainNode.gain.linearRampToValueAtTime(sustainLevel, now + attackTime + decayTime);
-
-    oscillator.start(now);
+    // Start all oscillators
+    oscillators.forEach(osc => osc.start());
     
-    activeOscillatorsRef.current.set(note, { oscillator, gainNode });
-  }, [getAudioContext]);
+    activeNotesRef.current.set(note, { oscillators, gainNode, filterNode });
+  }, [getAudioContext, currentInstrument]);
 
   // Play a single MIDI note (momentary, with auto-release)
   const playMidiNote = useCallback((midiNote: number) => {
     const frequency = midiNoteToFrequency(midiNote);
     const audioContext = getAudioContext();
     
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
+    const { oscillators, gainNode, filterNode } = createInstrumentNote(
+      audioContext,
+      frequency,
+      currentInstrument,
+      false
+    );
 
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+    // Start all oscillators
+    oscillators.forEach(osc => osc.start());
 
-    oscillator.frequency.value = frequency;
-    oscillator.type = 'sine';
-
-    // ADSR envelope
-    const now = audioContext.currentTime;
-    const attackTime = 0.01;
-    const decayTime = 0.1;
-    const sustainLevel = 0.3;
-    const releaseTime = 0.3;
-
-    gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(0.5, now + attackTime);
-    gainNode.gain.linearRampToValueAtTime(sustainLevel, now + attackTime + decayTime);
-    gainNode.gain.linearRampToValueAtTime(0, now + attackTime + decayTime + releaseTime);
-
-    oscillator.start(now);
-    oscillator.stop(now + attackTime + decayTime + releaseTime);
-  }, [getAudioContext]);
+    // Auto-stop after instrument-specific time
+    const stopTime = getInstrumentAutoStopTime(currentInstrument);
+    setTimeout(() => {
+      oscillators.forEach(osc => {
+        try { osc.stop(); } catch {}
+      });
+    }, stopTime * 1000);
+  }, [getAudioContext, currentInstrument]);
 
   // Play/stop sustained MIDI note (for chord mode)
   const playMidiChordNote = useCallback((midiNote: number, shouldStop: boolean) => {
@@ -158,81 +145,78 @@ export const usePianoAudio = () => {
 
     // If stopping, fade out and remove
     if (shouldStop) {
-      const active = activeMidiOscillatorsRef.current.get(midiNote);
+      const active = activeMidiNotesRef.current.get(midiNote);
       if (active) {
         const now = audioContext.currentTime;
-        const releaseTime = 0.5;
+        const releaseTime = getInstrumentReleaseTime(currentInstrument);
         
         active.gainNode.gain.cancelScheduledValues(now);
         active.gainNode.gain.setValueAtTime(active.gainNode.gain.value, now);
         active.gainNode.gain.linearRampToValueAtTime(0, now + releaseTime);
         
-        active.oscillator.stop(now + releaseTime);
-        activeMidiOscillatorsRef.current.delete(midiNote);
+        active.oscillators.forEach(osc => {
+          try { osc.stop(now + releaseTime); } catch {}
+        });
+        activeMidiNotesRef.current.delete(midiNote);
       }
       return;
     }
 
     // If already playing, don't start again
-    if (activeMidiOscillatorsRef.current.has(midiNote)) return;
+    if (activeMidiNotesRef.current.has(midiNote)) return;
 
     // Calculate frequency from MIDI note
     const frequency = midiNoteToFrequency(midiNote);
 
-    // Start new sustained note
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
+    // Create instrument note
+    const { oscillators, gainNode, filterNode } = createInstrumentNote(
+      audioContext,
+      frequency,
+      currentInstrument,
+      true
+    );
 
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    oscillator.frequency.value = frequency;
-    oscillator.type = 'sine';
-
-    // Sustained envelope
-    const now = audioContext.currentTime;
-    const attackTime = 0.01;
-    const decayTime = 0.1;
-    const sustainLevel = 0.35;
-
-    gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(0.5, now + attackTime);
-    gainNode.gain.linearRampToValueAtTime(sustainLevel, now + attackTime + decayTime);
-
-    oscillator.start(now);
+    // Start all oscillators
+    oscillators.forEach(osc => osc.start());
     
-    activeMidiOscillatorsRef.current.set(midiNote, { oscillator, gainNode });
-  }, [getAudioContext]);
+    activeMidiNotesRef.current.set(midiNote, { oscillators, gainNode, filterNode });
+  }, [getAudioContext, currentInstrument]);
 
   const stopAllNotes = useCallback(() => {
     const audioContext = getAudioContext();
     const now = audioContext.currentTime;
-    const releaseTime = 0.5;
+    const releaseTime = getInstrumentReleaseTime(currentInstrument);
 
     // Stop on-screen piano notes
-    activeOscillatorsRef.current.forEach((active) => {
+    activeNotesRef.current.forEach((active) => {
       active.gainNode.gain.cancelScheduledValues(now);
       active.gainNode.gain.setValueAtTime(active.gainNode.gain.value, now);
       active.gainNode.gain.linearRampToValueAtTime(0, now + releaseTime);
-      active.oscillator.stop(now + releaseTime);
+      active.oscillators.forEach(osc => {
+        try { osc.stop(now + releaseTime); } catch {}
+      });
     });
-    activeOscillatorsRef.current.clear();
+    activeNotesRef.current.clear();
 
     // Stop MIDI notes
-    activeMidiOscillatorsRef.current.forEach((active) => {
+    activeMidiNotesRef.current.forEach((active) => {
       active.gainNode.gain.cancelScheduledValues(now);
       active.gainNode.gain.setValueAtTime(active.gainNode.gain.value, now);
       active.gainNode.gain.linearRampToValueAtTime(0, now + releaseTime);
-      active.oscillator.stop(now + releaseTime);
+      active.oscillators.forEach(osc => {
+        try { osc.stop(now + releaseTime); } catch {}
+      });
     });
-    activeMidiOscillatorsRef.current.clear();
-  }, [getAudioContext]);
+    activeMidiNotesRef.current.clear();
+  }, [getAudioContext, currentInstrument]);
 
   return { 
     playNote, 
     playChordNote, 
     playMidiNote, 
     playMidiChordNote, 
-    stopAllNotes 
+    stopAllNotes,
+    currentInstrument,
+    setCurrentInstrument
   };
 };
