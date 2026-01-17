@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { usePianoAudio } from "@/hooks/usePianoAudio";
 import { useMidiKeyboard, midiNoteToName } from "@/hooks/useMidiKeyboard";
@@ -48,7 +48,7 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
   } = usePianoAudio();
 
   // MIDI keyboard integration - now receives MIDI note numbers
-  const handleMidiNotePress = (midiNote: number, velocity: number) => {
+  const handleMidiNotePress = useCallback((midiNote: number, velocity: number) => {
     const noteInfo = midiNoteToName(midiNote);
     
     if (mode === "single") {
@@ -72,9 +72,9 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
       setMidiDisplayNotes(prev => [...new Set([...prev, noteInfo.display])]);
       playMidiChordNote(midiNote, false);
     }
-  };
+  }, [mode, playMidiNote, playMidiChordNote]);
 
-  const handleMidiNoteRelease = (midiNote: number) => {
+  const handleMidiNoteRelease = useCallback((midiNote: number) => {
     if (mode === "chord") {
       const noteInfo = midiNoteToName(midiNote);
       // Remove from MIDI active notes and stop sound
@@ -86,7 +86,7 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
       setMidiDisplayNotes(prev => prev.filter(n => n !== noteInfo.display));
       playMidiChordNote(midiNote, true);
     }
-  };
+  }, [mode, playMidiChordNote]);
 
   const {
     isSupported,
