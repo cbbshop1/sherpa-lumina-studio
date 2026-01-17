@@ -1,19 +1,22 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import AppNavigation from "@/components/AppNavigation";
 import PitchPipeHero from "@/components/pitch-pipe/PitchPipeHero";
-import ToneGenerator from "@/components/pitch-pipe/ToneGenerator";
+import CircularPitchPipe from "@/components/pitch-pipe/CircularPitchPipe";
 import AudioVisualizer from "@/components/pitch-pipe/AudioVisualizer";
-import KeySelector from "@/components/pitch-pipe/KeySelector";
 import ChordBuilder from "@/components/pitch-pipe/ChordBuilder";
-import { frequencyToNote } from "@/utils/pitchPipeAudio";
+import ToneGenerator from "@/components/pitch-pipe/ToneGenerator";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 
 const PitchPipe = () => {
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [isVisualizerActive, setIsVisualizerActive] = useState(false);
-  const [selectedNote, setSelectedNote] = useState("A");
-  const [selectedOctave, setSelectedOctave] = useState(4);
-  const [currentFrequency, setCurrentFrequency] = useState(440);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
   // Initialize AudioContext on first user interaction
   const initAudioContext = useCallback(() => {
@@ -30,18 +33,10 @@ const PitchPipe = () => {
     initAudioContext();
   }, [initAudioContext]);
 
-  // Handle analyser connection from ToneGenerator
+  // Handle analyser connection from components
   const handleAnalyserConnect = useCallback((newAnalyser: AnalyserNode) => {
     setAnalyser(newAnalyser);
     setIsVisualizerActive(true);
-  }, []);
-
-  // Handle frequency change from KeySelector
-  const handleFrequencyChange = useCallback((frequency: number) => {
-    setCurrentFrequency(frequency);
-    const noteInfo = frequencyToNote(frequency);
-    setSelectedNote(noteInfo.note);
-    setSelectedOctave(noteInfo.octave);
   }, []);
 
   return (
@@ -52,34 +47,39 @@ const PitchPipe = () => {
       <div className="pt-16">
         <PitchPipeHero />
         
-        <div className="max-w-6xl mx-auto px-6 py-12 space-y-8">
-          {/* Main grid layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left column: Tone Generator */}
-            <ToneGenerator
-              audioContext={audioContext}
-              onAnalyserConnect={handleAnalyserConnect}
-            />
-            
-            {/* Right column: Key Selector and Chord Builder */}
-            <div className="space-y-8">
-              <KeySelector
-                selectedNote={selectedNote}
-                selectedOctave={selectedOctave}
-                onNoteChange={setSelectedNote}
-                onOctaveChange={setSelectedOctave}
-                onFrequencyChange={handleFrequencyChange}
-              />
-              
-              <ChordBuilder audioContext={audioContext} />
-            </div>
-          </div>
+        <div className="max-w-4xl mx-auto px-6 py-12 space-y-8">
+          {/* Main Circular Pitch Pipe */}
+          <CircularPitchPipe
+            audioContext={audioContext}
+            onAnalyserConnect={handleAnalyserConnect}
+          />
           
-          {/* Audio Visualizer - Full width */}
+          {/* Waveform Visualizer */}
           <AudioVisualizer
             analyser={analyser}
             isActive={isVisualizerActive}
           />
+          
+          {/* Chord Builder */}
+          <ChordBuilder audioContext={audioContext} />
+          
+          {/* Advanced Tone Generator (Collapsible) */}
+          <Collapsible open={isAdvancedOpen} onOpenChange={setIsAdvancedOpen}>
+            <CollapsibleTrigger className="flex items-center justify-between w-full glass-effect rounded-2xl p-4 hover:bg-muted/50 transition-colors">
+              <span className="text-lg font-semibold">Advanced Tone Generator</span>
+              <ChevronDown 
+                className={`w-5 h-5 text-muted-foreground transition-transform duration-200 ${
+                  isAdvancedOpen ? 'rotate-180' : ''
+                }`} 
+              />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-4">
+              <ToneGenerator
+                audioContext={audioContext}
+                onAnalyserConnect={handleAnalyserConnect}
+              />
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       </div>
     </div>
