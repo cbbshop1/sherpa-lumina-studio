@@ -52,7 +52,12 @@ const ChordLibrary = ({ onChordSelect, selectedChordNotes, onPlayChord, onAddFav
 
   const handleChordClick = (chord: Chord) => {
     const chordName = `${selectedKey}${chord.suffix}`;
-    onChordSelect(chord.notes, chordName);
+    // Toggle selection - clicking same chord again deselects it
+    if (isChordSelected(chord.notes)) {
+      onChordSelect([], "");
+    } else {
+      onChordSelect(chord.notes, chordName);
+    }
   };
 
   const handleAddFavorite = (chord: Chord) => {
