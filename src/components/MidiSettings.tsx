@@ -21,9 +21,7 @@ import { MidiDevice } from "@/hooks/useMidiKeyboard";
 interface MidiSettingsProps {
   devices: MidiDevice[];
   selectedDeviceId: string | null;
-  octaveOffset: number;
   onSelectDevice: (deviceId: string | null) => void;
-  onChangeOctaveOffset: (offset: number) => void;
   isSupported: boolean;
   error: string | null;
 }
@@ -31,9 +29,7 @@ interface MidiSettingsProps {
 const MidiSettings = ({
   devices,
   selectedDeviceId,
-  octaveOffset,
   onSelectDevice,
-  onChangeOctaveOffset,
   isSupported,
   error,
 }: MidiSettingsProps) => {
@@ -52,7 +48,7 @@ const MidiSettings = ({
             MIDI Keyboard Settings
           </DialogTitle>
           <DialogDescription>
-            Configure your MIDI keyboard connection and preferences
+            Connect your MIDI keyboard to play any note
           </DialogDescription>
         </DialogHeader>
         
@@ -101,46 +97,12 @@ const MidiSettings = ({
             </div>
           )}
 
-          {/* Octave Offset */}
-          {isSupported && (
-            <div className="space-y-2">
-              <Label htmlFor="octave-offset">Octave Offset</Label>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onChangeOctaveOffset(octaveOffset - 1)}
-                  disabled={octaveOffset <= -2}
-                >
-                  -
-                </Button>
-                <div className="flex-1 text-center">
-                  <span className="text-lg font-semibold">
-                    {octaveOffset > 0 ? '+' : ''}{octaveOffset}
-                  </span>
-                  <p className="text-xs text-muted-foreground">octaves</p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onChangeOctaveOffset(octaveOffset + 1)}
-                  disabled={octaveOffset >= 2}
-                >
-                  +
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Shift MIDI notes up or down by octaves
-              </p>
-            </div>
-          )}
-
           {/* Info */}
           {isSupported && (
             <div className="p-4 rounded-lg bg-muted/50 border border-border">
               <p className="text-xs text-muted-foreground">
-                <strong>Tip:</strong> Make sure your MIDI keyboard is connected before opening this page. 
-                The app listens to MIDI notes 60-72 (C4-C5).
+                <strong>Full keyboard support:</strong> All 128 MIDI notes are now playable. 
+                Notes in the C4-C5 range will also highlight on the on-screen piano.
               </p>
             </div>
           )}
