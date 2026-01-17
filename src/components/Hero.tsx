@@ -29,29 +29,38 @@ const Hero = () => {
         </p>
         
         <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 animate-slide-up" style={{ animationDelay: '0.4s' }}>
-          <div className="glass-effect p-6 rounded-2xl hover:scale-105 transition-transform duration-300">
+          <button 
+            onClick={() => document.getElementById('piano')?.scrollIntoView({ behavior: 'smooth' })}
+            className="glass-effect p-6 rounded-2xl hover:scale-105 transition-transform duration-300 text-left cursor-pointer"
+          >
             <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center mb-4 mx-auto">
               <Music2 className="w-6 h-6 text-primary" />
             </div>
             <h3 className="text-lg font-semibold mb-2">Interactive Piano</h3>
             <p className="text-sm text-muted-foreground">Play and visualize notes on a virtual keyboard</p>
-          </div>
+          </button>
           
-          <div className="glass-effect p-6 rounded-2xl hover:scale-105 transition-transform duration-300">
+          <button 
+            onClick={() => document.getElementById('scale-explorer')?.scrollIntoView({ behavior: 'smooth' })}
+            className="glass-effect p-6 rounded-2xl hover:scale-105 transition-transform duration-300 text-left cursor-pointer"
+          >
             <div className="w-12 h-12 rounded-xl bg-secondary/20 flex items-center justify-center mb-4 mx-auto">
               <Zap className="w-6 h-6 text-secondary" />
             </div>
             <h3 className="text-lg font-semibold mb-2">Scale Explorer</h3>
             <p className="text-sm text-muted-foreground">Discover scales and their patterns visually</p>
-          </div>
+          </button>
           
-          <div className="glass-effect p-6 rounded-2xl hover:scale-105 transition-transform duration-300">
+          <button 
+            onClick={() => document.getElementById('chord-library')?.scrollIntoView({ behavior: 'smooth' })}
+            className="glass-effect p-6 rounded-2xl hover:scale-105 transition-transform duration-300 text-left cursor-pointer"
+          >
             <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center mb-4 mx-auto">
               <Gem className="w-6 h-6 text-accent" />
             </div>
             <h3 className="text-lg font-semibold mb-2">Chord Builder</h3>
             <p className="text-sm text-muted-foreground">Build and understand chord progressions</p>
-          </div>
+          </button>
         </div>
       </div>
     </section>

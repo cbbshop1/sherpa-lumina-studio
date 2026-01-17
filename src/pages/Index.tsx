@@ -67,22 +67,28 @@ const Index = () => {
       {/* Add padding for fixed navigation */}
       <div className="pt-16">
         <Hero />
-        <PianoKeyboard 
-          highlightedNotes={highlightedNotes} 
-          libraryChordName={libraryChordName}
-        />
-        <ChordLibrary 
-          onChordSelect={handleChordSelect}
-          selectedChordNotes={highlightedNotes}
-          onPlayChord={handlePlayChord}
-          onAddFavorite={addFavorite}
-          isFavorite={isFavorite}
-        />
+        <div id="piano">
+          <PianoKeyboard 
+            highlightedNotes={highlightedNotes} 
+            libraryChordName={libraryChordName}
+          />
+        </div>
+        <div id="chord-library">
+          <ChordLibrary 
+            onChordSelect={handleChordSelect}
+            selectedChordNotes={highlightedNotes}
+            onPlayChord={handlePlayChord}
+            onAddFavorite={addFavorite}
+            isFavorite={isFavorite}
+          />
+        </div>
         <ChordProgressionBuilder 
           onPlayProgression={handlePlayProgression}
           favorites={favorites}
         />
-        <ScaleExplorer />
+        <div id="scale-explorer">
+          <ScaleExplorer />
+        </div>
       </div>
     </div>
   );
