@@ -51,42 +51,28 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
   const handleMidiNotePress = useCallback((midiNote: number, velocity: number) => {
     const noteInfo = midiNoteToName(midiNote);
     
-    if (mode === "single") {
-      // Single note mode - momentary play
-      playMidiNote(midiNote);
-      
-      setMidiActiveNotes(prev => new Set([...prev, midiNote]));
-      setMidiDisplayNotes(prev => [...prev, noteInfo.display]);
-      
-      setTimeout(() => {
-        setMidiActiveNotes(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(midiNote);
-          return newSet;
-        });
-        setMidiDisplayNotes(prev => prev.filter(n => n !== noteInfo.display));
-      }, 410);
-    } else {
-      // Chord mode - add to active notes and play sustained
-      setMidiActiveNotes(prev => new Set([...prev, midiNote]));
-      setMidiDisplayNotes(prev => [...new Set([...prev, noteInfo.display])]);
-      playMidiChordNote(midiNote, false);
-    }
-  }, [mode, playMidiNote, playMidiChordNote]);
+    // Both modes now use sustained notes that stop on release
+    setMidiActiveNotes(prev => new Set([...prev, midiNote]));
+    setMidiDisplayNotes(prev => 
+      mode === "chord" 
+        ? [...new Set([...prev, noteInfo.display])]
+        : [...prev, noteInfo.display]
+    );
+    playMidiChordNote(midiNote, false);
+  }, [mode, playMidiChordNote]);
 
   const handleMidiNoteRelease = useCallback((midiNote: number) => {
-    if (mode === "chord") {
-      const noteInfo = midiNoteToName(midiNote);
-      // Remove from MIDI active notes and stop sound
-      setMidiActiveNotes(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(midiNote);
-        return newSet;
-      });
-      setMidiDisplayNotes(prev => prev.filter(n => n !== noteInfo.display));
-      playMidiChordNote(midiNote, true);
-    }
-  }, [mode, playMidiChordNote]);
+    const noteInfo = midiNoteToName(midiNote);
+    
+    // Stop the note and remove from active notes in both modes
+    setMidiActiveNotes(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(midiNote);
+      return newSet;
+    });
+    setMidiDisplayNotes(prev => prev.filter(n => n !== noteInfo.display));
+    playMidiChordNote(midiNote, true);
+  }, [playMidiChordNote]);
 
   const {
     isSupported,
@@ -270,7 +256,8 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
               {notes.filter(n => !n.isBlack).map((key) => (
                 <button
                   key={key.note}
-                  onClick={() => handleNoteClick(key.note)}
+                  onMouseDown={() => handleNoteClick(key.note)}
+                  onTouchStart={(e) => { e.preventDefault(); handleNoteClick(key.note); }}
                   className={cn(
                     "w-16 h-48 rounded-b-lg border-2 transition-all duration-150 relative",
                     isKeyActive(key.note)
@@ -310,7 +297,8 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
                   return (
                     <button
                       key={key.note}
-                      onClick={() => handleNoteClick(key.note)}
+                      onMouseDown={() => handleNoteClick(key.note)}
+                      onTouchStart={(e) => { e.preventDefault(); handleNoteClick(key.note); }}
                       className={cn(
                         "w-10 h-32 rounded-b-lg border-2 -ml-5 z-10 transition-all duration-150 pointer-events-auto relative",
                         isKeyActive(key.note)
