@@ -1,30 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-// MIDI note to piano note mapping (C4=60 to C5=72)
-const midiNoteToPiano: Record<number, string> = {
-  60: 'C',   // C4
-  61: 'C#',
-  62: 'D',
-  63: 'D#',
-  64: 'E',
-  65: 'F',
-  66: 'F#',
-  67: 'G',
-  68: 'G#',
-  69: 'A',
-  70: 'A#',
-  71: 'B',
-  72: 'C2',  // C5
-};
-
 export interface MidiDevice {
   id: string;
   name: string;
 }
 
+// Helper to convert MIDI note number to note name and octave
+export const midiNoteToName = (midiNote: number): { note: string; octave: number; display: string } => {
+  const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const octave = Math.floor(midiNote / 12) - 1;
+  const noteIndex = midiNote % 12;
+  const note = noteNames[noteIndex];
+  return { note, octave, display: `${note}${octave}` };
+};
+
 interface UseMidiKeyboardProps {
-  onNotePress?: (note: string, velocity: number) => void;
-  onNoteRelease?: (note: string) => void;
+  onNotePress?: (midiNote: number, velocity: number) => void;
+  onNoteRelease?: (midiNote: number) => void;
   enabled?: boolean;
 }
 
@@ -38,7 +30,6 @@ export const useMidiKeyboard = ({
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [octaveOffset, setOctaveOffset] = useState(0); // -2 to +2
   
   const midiAccessRef = useRef<MIDIAccess | null>(null);
 
@@ -97,26 +88,19 @@ export const useMidiKeyboard = ({
     const [status, note, velocity] = event.data;
     const command = status & 0xF0;
     
-    // Note On (0x90)
+    // Note On (0x90) with velocity > 0
     if (command === 0x90 && velocity > 0) {
-      // Apply octave offset
-      const adjustedNote = note + (octaveOffset * 12);
-      const pianoNote = midiNoteToPiano[adjustedNote];
-      
-      if (pianoNote && onNotePress) {
-        onNotePress(pianoNote, velocity);
+      if (onNotePress) {
+        onNotePress(note, velocity);
       }
     }
     // Note Off (0x80) or Note On with velocity 0
     else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
-      const adjustedNote = note + (octaveOffset * 12);
-      const pianoNote = midiNoteToPiano[adjustedNote];
-      
-      if (pianoNote && onNoteRelease) {
-        onNoteRelease(pianoNote);
+      if (onNoteRelease) {
+        onNoteRelease(note);
       }
     }
-  }, [enabled, octaveOffset, onNotePress, onNoteRelease]);
+  }, [enabled, onNotePress, onNoteRelease]);
 
   // Connect to selected device
   useEffect(() => {
@@ -150,22 +134,12 @@ export const useMidiKeyboard = ({
     }
   }, []);
 
-  const changeOctaveOffset = useCallback((offset: number) => {
-    const clampedOffset = Math.max(-2, Math.min(2, offset));
-    setOctaveOffset(clampedOffset);
-    localStorage.setItem('midi-octave-offset', clampedOffset.toString());
-  }, []);
-
   // Load saved settings
   useEffect(() => {
     const savedDevice = localStorage.getItem('midi-selected-device');
-    const savedOffset = localStorage.getItem('midi-octave-offset');
     
     if (savedDevice) {
       setSelectedDeviceId(savedDevice);
-    }
-    if (savedOffset) {
-      setOctaveOffset(parseInt(savedOffset));
     }
   }, []);
 
@@ -176,9 +150,7 @@ export const useMidiKeyboard = ({
     selectedDeviceId,
     selectedDevice: devices.find(d => d.id === selectedDeviceId) || null,
     error,
-    octaveOffset,
     requestMidiAccess,
     selectDevice,
-    changeOctaveOffset,
   };
 };

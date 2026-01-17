@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { usePianoAudio } from "@/hooks/usePianoAudio";
-import { useMidiKeyboard } from "@/hooks/useMidiKeyboard";
+import { useMidiKeyboard, midiNoteToName } from "@/hooks/useMidiKeyboard";
 import { recognizeChord, ChordInfo } from "@/utils/chordRecognition";
 import { Music, Music2, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,42 +31,50 @@ interface PianoKeyboardProps {
 
 const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboardProps) => {
   const [activeNotes, setActiveNotes] = useState<Set<string>>(new Set());
-  const [midiActiveNotes, setMidiActiveNotes] = useState<Set<string>>(new Set());
+  const [midiActiveNotes, setMidiActiveNotes] = useState<Set<number>>(new Set());
+  const [midiDisplayNotes, setMidiDisplayNotes] = useState<string[]>([]);
   const [mode, setMode] = useState<"single" | "chord">("single");
   const [chordInfo, setChordInfo] = useState<ChordInfo | null>(null);
-  const { playNote, playChordNote, stopAllNotes } = usePianoAudio();
+  const { playNote, playChordNote, playMidiNote, playMidiChordNote, stopAllNotes } = usePianoAudio();
 
-  // MIDI keyboard integration
-  const handleMidiNotePress = (note: string, velocity: number) => {
+  // MIDI keyboard integration - now receives MIDI note numbers
+  const handleMidiNotePress = (midiNote: number, velocity: number) => {
+    const noteInfo = midiNoteToName(midiNote);
+    
     if (mode === "single") {
       // Single note mode - momentary play
-      playNote(note);
+      playMidiNote(midiNote);
       
-      setMidiActiveNotes(prev => new Set([...prev, note]));
+      setMidiActiveNotes(prev => new Set([...prev, midiNote]));
+      setMidiDisplayNotes(prev => [...prev, noteInfo.display]);
       
       setTimeout(() => {
         setMidiActiveNotes(prev => {
           const newSet = new Set(prev);
-          newSet.delete(note);
+          newSet.delete(midiNote);
           return newSet;
         });
+        setMidiDisplayNotes(prev => prev.filter(n => n !== noteInfo.display));
       }, 410);
     } else {
       // Chord mode - add to active notes and play sustained
-      setMidiActiveNotes(prev => new Set([...prev, note]));
-      playChordNote(note, false);
+      setMidiActiveNotes(prev => new Set([...prev, midiNote]));
+      setMidiDisplayNotes(prev => [...new Set([...prev, noteInfo.display])]);
+      playMidiChordNote(midiNote, false);
     }
   };
 
-  const handleMidiNoteRelease = (note: string) => {
+  const handleMidiNoteRelease = (midiNote: number) => {
     if (mode === "chord") {
+      const noteInfo = midiNoteToName(midiNote);
       // Remove from MIDI active notes and stop sound
       setMidiActiveNotes(prev => {
         const newSet = new Set(prev);
-        newSet.delete(note);
+        newSet.delete(midiNote);
         return newSet;
       });
-      playChordNote(note, true);
+      setMidiDisplayNotes(prev => prev.filter(n => n !== noteInfo.display));
+      playMidiChordNote(midiNote, true);
     }
   };
 
@@ -76,19 +84,42 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
     selectedDeviceId,
     selectedDevice,
     error: midiError,
-    octaveOffset,
     selectDevice,
-    changeOctaveOffset,
   } = useMidiKeyboard({
     onNotePress: handleMidiNotePress,
     onNoteRelease: handleMidiNoteRelease,
     enabled: true,
   });
 
+  // Map on-screen piano note to the display key (for highlighting)
+  const getDisplayKeyForMidiNote = (midiNote: number): string | null => {
+    const noteInfo = midiNoteToName(midiNote);
+    // Check if it matches any on-screen key (C4-C5 maps to our notes array)
+    if (midiNote >= 60 && midiNote <= 72) {
+      if (midiNote === 72) return "C2";
+      return noteInfo.note;
+    }
+    return null;
+  };
+
+  // Get on-screen keys that should be highlighted from MIDI
+  const getMidiHighlightedKeys = (): Set<string> => {
+    const highlighted = new Set<string>();
+    midiActiveNotes.forEach(midiNote => {
+      const key = getDisplayKeyForMidiNote(midiNote);
+      if (key) highlighted.add(key);
+    });
+    return highlighted;
+  };
+
+  const midiHighlightedKeys = getMidiHighlightedKeys();
+
   // Update chord recognition when MIDI notes change in chord mode
   useEffect(() => {
     if (mode === "chord" && midiActiveNotes.size > 0) {
-      const allActiveNotes = new Set([...activeNotes, ...midiActiveNotes]);
+      // Get base note names for chord recognition
+      const midiBaseNotes = Array.from(midiActiveNotes).map(n => midiNoteToName(n).note);
+      const allActiveNotes = new Set([...activeNotes, ...midiBaseNotes]);
       const chord = recognizeChord(Array.from(allActiveNotes));
       setChordInfo(chord);
     }
@@ -133,6 +164,7 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
     stopAllNotes();
     setActiveNotes(new Set());
     setMidiActiveNotes(new Set());
+    setMidiDisplayNotes([]);
     setChordInfo(null);
   };
 
@@ -141,13 +173,20 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
       stopAllNotes();
       setActiveNotes(new Set());
       setMidiActiveNotes(new Set());
+      setMidiDisplayNotes([]);
       setChordInfo(null);
       setMode(newMode);
     }
   };
 
-  // Combined active notes for display
-  const allActiveNotes = new Set([...activeNotes, ...midiActiveNotes]);
+  // Check if a key is active (either from click or MIDI)
+  const isKeyActive = (note: string): boolean => {
+    return activeNotes.has(note) || midiHighlightedKeys.has(note);
+  };
+
+  const isKeyMidiActive = (note: string): boolean => {
+    return midiHighlightedKeys.has(note);
+  };
 
   return (
     <section className="py-20 px-6">
@@ -177,9 +216,7 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
               <MidiSettings
                 devices={devices}
                 selectedDeviceId={selectedDeviceId}
-                octaveOffset={octaveOffset}
                 onSelectDevice={selectDevice}
-                onChangeOctaveOffset={changeOctaveOffset}
                 isSupported={isSupported}
                 error={midiError}
               />
@@ -217,8 +254,8 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
                   onClick={() => handleNoteClick(key.note)}
                   className={cn(
                     "w-16 h-48 rounded-b-lg border-2 transition-all duration-150 relative",
-                    allActiveNotes.has(key.note)
-                      ? midiActiveNotes.has(key.note)
+                    isKeyActive(key.note)
+                      ? isKeyMidiActive(key.note)
                         ? "bg-gradient-to-b from-secondary to-accent border-secondary shadow-[0_0_35px_hsl(var(--secondary))] translate-y-1 scale-105"
                         : mode === "chord"
                         ? "bg-accent border-accent shadow-[0_0_30px_hsl(var(--accent))] translate-y-1 scale-105"
@@ -228,14 +265,14 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
                       : "bg-white border-slate-300 hover:bg-slate-50 hover:shadow-lg"
                   )}
                 >
-                  {midiActiveNotes.has(key.note) && (
+                  {isKeyMidiActive(key.note) && (
                     <span className="absolute top-2 right-2 text-[10px] font-bold text-secondary-foreground bg-secondary/80 px-1.5 py-0.5 rounded">
                       MIDI
                     </span>
                   )}
                   <span className={cn(
                     "block mt-auto mb-4 text-sm font-semibold",
-                    allActiveNotes.has(key.note) 
+                    isKeyActive(key.note) 
                       ? mode === "chord" ? "text-accent-foreground" : "text-primary-foreground" 
                       : "text-slate-800"
                   )}>
@@ -257,8 +294,8 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
                       onClick={() => handleNoteClick(key.note)}
                       className={cn(
                         "w-10 h-32 rounded-b-lg border-2 -ml-5 z-10 transition-all duration-150 pointer-events-auto relative",
-                        allActiveNotes.has(key.note)
-                          ? midiActiveNotes.has(key.note)
+                        isKeyActive(key.note)
+                          ? isKeyMidiActive(key.note)
                             ? "bg-gradient-to-b from-secondary to-accent border-secondary shadow-[0_0_30px_hsl(var(--secondary))] translate-y-1"
                             : mode === "chord"
                             ? "bg-accent border-accent shadow-[0_0_20px_hsl(var(--accent))] translate-y-1"
@@ -268,14 +305,14 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
                           : "bg-slate-900 border-slate-950 hover:bg-slate-800 hover:shadow-lg"
                       )}
                     >
-                      {midiActiveNotes.has(key.note) && (
+                      {isKeyMidiActive(key.note) && (
                         <span className="absolute top-1 right-1 text-[8px] font-bold text-secondary-foreground bg-secondary/80 px-1 py-0.5 rounded">
                           MIDI
                         </span>
                       )}
                       <span className={cn(
                         "block mt-auto mb-4 text-xs font-semibold",
-                        allActiveNotes.has(key.note) 
+                        isKeyActive(key.note) 
                           ? mode === "chord" ? "text-accent-foreground" : "text-secondary-foreground" 
                           : "text-slate-200"
                       )}>
@@ -321,6 +358,11 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
                     <p className="text-sm text-muted-foreground">
                       Notes: {chordInfo.notes.join(" - ")}
                     </p>
+                    {midiDisplayNotes.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        MIDI: {midiDisplayNotes.join(", ")}
+                      </p>
+                    )}
                   </div>
                   <div className="mt-4 flex justify-center">
                     <Button
@@ -346,7 +388,9 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
           {mode === "single" && (
             <div className="mt-8 text-center">
               <p className="text-sm text-muted-foreground">
-                Active notes: {allActiveNotes.size > 0 ? Array.from(allActiveNotes).join(", ") : "None"}
+                Active notes: {midiDisplayNotes.length > 0 || activeNotes.size > 0 
+                  ? [...Array.from(activeNotes), ...midiDisplayNotes].join(", ") 
+                  : "None"}
               </p>
             </div>
           )}
