@@ -23,17 +23,23 @@ interface OscillatorSet {
   filterNode?: BiquadFilterNode;
 }
 
-// Create instrument-specific oscillator chain
+// Create instrument-specific oscillator chain.
+// `destination` lets callers (e.g. SynthBackend) route audio through the mixer
+// instead of directly to audioContext.destination.
+// `startTime` enables sample-accurate envelope scheduling for sequenced notes.
 export function createInstrumentNote(
   audioContext: AudioContext,
   frequency: number,
   instrument: InstrumentType,
-  isSustained: boolean = false
+  isSustained: boolean = false,
+  destination?: AudioNode,
+  startTime?: number,
 ): OscillatorSet {
+  const dest = destination ?? audioContext.destination;
   const masterGain = audioContext.createGain();
-  masterGain.connect(audioContext.destination);
-  
-  const now = audioContext.currentTime;
+  masterGain.connect(dest);
+
+  const now = startTime ?? audioContext.currentTime;
   const oscillators: OscillatorNode[] = [];
   let filterNode: BiquadFilterNode | undefined;
 
@@ -196,7 +202,7 @@ export function createInstrumentNote(
       
       masterGain.disconnect();
       masterGain.connect(filterNode);
-      filterNode.connect(audioContext.destination);
+      filterNode.connect(dest);
       
       // Slow attack for strings
       masterGain.gain.setValueAtTime(0, now);

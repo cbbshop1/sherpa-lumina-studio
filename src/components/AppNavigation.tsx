@@ -1,4 +1,4 @@
-import { Music2, Radio } from "lucide-react";
+import { Music2, Radio, Sliders } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +42,21 @@ const AppNavigation = () => {
             >
               <Radio className="w-4 h-4" />
               <span>Pitch Pipe</span>
+            </NavLink>
+
+            <NavLink
+              to="/studio"
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                  isActive
+                    ? "bg-primary/20 text-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                )
+              }
+            >
+              <Sliders className="w-4 h-4" />
+              <span>Studio</span>
             </NavLink>
           </div>
 

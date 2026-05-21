@@ -15,15 +15,21 @@ export const midiNoteToName = (midiNote: number): { note: string; octave: number
 };
 
 interface UseMidiKeyboardProps {
-  onNotePress?: (midiNote: number, velocity: number) => void;
+  onNotePress?:   (midiNote: number, velocity: number) => void;
   onNoteRelease?: (midiNote: number) => void;
+  /** Pitch bend value in semitones, range ±2 (matches N-32 default ±2 semitone range). */
+  onPitchBend?:   (semitones: number) => void;
+  /** Raw MIDI CC message: cc number (0-127) and value (0-127). */
+  onCC?:          (cc: number, value: number) => void;
   enabled?: boolean;
 }
 
-export const useMidiKeyboard = ({ 
-  onNotePress, 
+export const useMidiKeyboard = ({
+  onNotePress,
   onNoteRelease,
-  enabled = true 
+  onPitchBend,
+  onCC,
+  enabled = true
 }: UseMidiKeyboardProps) => {
   const [midiAccess, setMidiAccess] = useState<MIDIAccess | null>(null);
   const [devices, setDevices] = useState<MidiDevice[]>([]);
@@ -32,13 +38,17 @@ export const useMidiKeyboard = ({
   const [error, setError] = useState<string | null>(null);
   
   const midiAccessRef = useRef<MIDIAccess | null>(null);
-  const onNotePressRef = useRef(onNotePress);
+  const onNotePressRef   = useRef(onNotePress);
   const onNoteReleaseRef = useRef(onNoteRelease);
+  const onPitchBendRef   = useRef(onPitchBend);
+  const onCCRef          = useRef(onCC);
 
   // Keep refs updated with latest callbacks
   useEffect(() => {
-    onNotePressRef.current = onNotePress;
+    onNotePressRef.current   = onNotePress;
     onNoteReleaseRef.current = onNoteRelease;
+    onPitchBendRef.current   = onPitchBend;
+    onCCRef.current          = onCC;
   });
 
   // Check browser support
@@ -93,16 +103,27 @@ export const useMidiKeyboard = ({
   const handleMidiMessage = useCallback((event: MIDIMessageEvent) => {
     if (!enabled) return;
 
-    const [status, note, velocity] = event.data;
+    const data    = event.data;
+    const status  = data[0];
     const command = status & 0xF0;
-    
+
     // Note On (0x90) with velocity > 0
-    if (command === 0x90 && velocity > 0) {
-      onNotePressRef.current?.(note, velocity);
+    if (command === 0x90 && data[2] > 0) {
+      onNotePressRef.current?.(data[1], data[2]);
     }
     // Note Off (0x80) or Note On with velocity 0
-    else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
-      onNoteReleaseRef.current?.(note);
+    else if (command === 0x80 || (command === 0x90 && data[2] === 0)) {
+      onNoteReleaseRef.current?.(data[1]);
+    }
+    // Pitch bend (0xE0) — 14-bit value, centre = 8192, range ±2 semitones
+    else if (command === 0xE0) {
+      const raw      = ((data[2] << 7) | data[1]) - 8192;
+      const semitones = (raw / 8192) * 2;
+      onPitchBendRef.current?.(semitones);
+    }
+    // Control change (0xB0)
+    else if (command === 0xB0) {
+      onCCRef.current?.(data[1], data[2]);
     }
   }, [enabled]);
 
