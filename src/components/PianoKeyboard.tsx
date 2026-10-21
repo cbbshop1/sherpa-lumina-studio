@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, type PointerEvent } from "react";
 import { cn } from "@/lib/utils";
 import { usePianoAudio } from "@/hooks/usePianoAudio";
 import { useMidiKeyboard, midiNoteToName } from "@/hooks/useMidiKeyboard";
@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import MidiSettings from "./MidiSettings";
 import { Badge } from "@/components/ui/badge";
 import InstrumentSelector from "./InstrumentSelector";
-import { InstrumentType } from "@/utils/instrumentSynthesis";
 
 const notes = [
   { note: "C", isBlack: false },
@@ -37,10 +36,14 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
   const [midiDisplayNotes, setMidiDisplayNotes] = useState<string[]>([]);
   const [mode, setMode] = useState<"single" | "chord">("single");
   const [chordInfo, setChordInfo] = useState<ChordInfo | null>(null);
+  const keyboardRef = useRef<HTMLDivElement | null>(null);
+  const activePointerIdRef = useRef<number | null>(null);
+  const activePointerNoteRef = useRef<string | null>(null);
+  const activePointerTargetRef = useRef<HTMLElement | null>(null);
   const { 
-    playNote, 
+    startNote,
+    stopNote,
     playChordNote, 
-    playMidiNote, 
     playMidiChordNote, 
     stopAllNotes,
     currentInstrument,
@@ -121,42 +124,113 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
     }
   }, [midiActiveNotes, mode, activeNotes]);
 
-  const handleNoteClick = (note: string) => {
-    if (mode === "single") {
-      // Single note mode - momentary play
-      playNote(note);
-      
-      setActiveNotes(prev => new Set([...prev, note]));
-      
-      setTimeout(() => {
-        setActiveNotes(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(note);
-          return newSet;
-        });
-      }, 410);
-    } else {
-      // Chord mode - toggle sustained notes
-      const newActiveNotes = new Set(activeNotes);
-      const isRemoving = newActiveNotes.has(note);
-      
-      if (isRemoving) {
-        newActiveNotes.delete(note);
-        playChordNote(note, true); // Stop the note
-      } else {
-        newActiveNotes.add(note);
-        playChordNote(note, false); // Start the note
-      }
-      
-      setActiveNotes(newActiveNotes);
-      
-      // Recognize chord
-      const chord = recognizeChord(Array.from(newActiveNotes));
-      setChordInfo(chord);
+  const getNoteAtPoint = useCallback((clientX: number, clientY: number): string | null => {
+    const target = document.elementFromPoint(clientX, clientY);
+    const key = target?.closest<HTMLElement>("[data-piano-note]");
+
+    if (!key || !keyboardRef.current?.contains(key)) {
+      return null;
     }
+
+    return key.dataset.pianoNote ?? null;
+  }, []);
+
+  const setSinglePointerNote = useCallback((note: string | null) => {
+    const currentNote = activePointerNoteRef.current;
+    if (currentNote === note) return;
+
+    if (currentNote) {
+      stopNote(currentNote);
+    }
+
+    if (note) {
+      startNote(note);
+      setActiveNotes(new Set([note]));
+    } else {
+      setActiveNotes(new Set());
+    }
+
+    activePointerNoteRef.current = note;
+  }, [startNote, stopNote]);
+
+  const resetPointerTracking = useCallback(() => {
+    const pointerId = activePointerIdRef.current;
+    const target = activePointerTargetRef.current;
+
+    if (pointerId !== null && target?.hasPointerCapture(pointerId)) {
+      try { target.releasePointerCapture(pointerId); } catch {
+        // Pointer capture may already have been released by the browser.
+      }
+    }
+
+    activePointerIdRef.current = null;
+    activePointerNoteRef.current = null;
+    activePointerTargetRef.current = null;
+  }, []);
+
+  const finishSinglePointer = useCallback((pointerId: number) => {
+    if (activePointerIdRef.current !== pointerId) return;
+
+    setSinglePointerNote(null);
+    resetPointerTracking();
+  }, [resetPointerTracking, setSinglePointerNote]);
+
+  const handleChordNoteToggle = (note: string) => {
+    const newActiveNotes = new Set(activeNotes);
+    const isRemoving = newActiveNotes.has(note);
+
+    if (isRemoving) {
+      newActiveNotes.delete(note);
+      playChordNote(note, true);
+    } else {
+      newActiveNotes.add(note);
+      playChordNote(note, false);
+    }
+
+    setActiveNotes(newActiveNotes);
+    setChordInfo(recognizeChord(Array.from(newActiveNotes)));
+  };
+
+  const handleKeyPointerDown = (event: PointerEvent<HTMLButtonElement>, note: string) => {
+    event.preventDefault();
+
+    if (mode === "chord") {
+      handleChordNoteToggle(note);
+      return;
+    }
+
+    if (activePointerIdRef.current !== null && activePointerIdRef.current !== event.pointerId) {
+      return;
+    }
+
+    activePointerIdRef.current = event.pointerId;
+    activePointerTargetRef.current = event.currentTarget;
+
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch {
+      // Pointer capture is best-effort; move hit-testing still works without it.
+    }
+    setSinglePointerNote(note);
+  };
+
+  const handleKeyboardPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (mode !== "single" || activePointerIdRef.current !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+    setSinglePointerNote(getNoteAtPoint(event.clientX, event.clientY));
+  };
+
+  const handleKeyboardPointerLeave = (event: PointerEvent<HTMLDivElement>) => {
+    if (mode !== "single" || activePointerIdRef.current !== event.pointerId) {
+      return;
+    }
+
+    setSinglePointerNote(null);
   };
 
   const handleClearChord = () => {
+    resetPointerTracking();
     stopAllNotes();
     setActiveNotes(new Set());
     setMidiActiveNotes(new Set());
@@ -166,6 +240,7 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
 
   const handleModeChange = (newMode: "single" | "chord") => {
     if (newMode !== mode) {
+      resetPointerTracking();
       stopAllNotes();
       setActiveNotes(new Set());
       setMidiActiveNotes(new Set());
@@ -250,16 +325,24 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
         </div>
 
         <div className="glass-effect p-8 rounded-3xl">
-          <div className="relative h-64 flex justify-center items-end">
+          <div
+            ref={keyboardRef}
+            className="relative h-64 flex justify-center items-end touch-none select-none"
+            onPointerMove={handleKeyboardPointerMove}
+            onPointerUp={(event) => finishSinglePointer(event.pointerId)}
+            onPointerCancel={(event) => finishSinglePointer(event.pointerId)}
+            onPointerLeave={handleKeyboardPointerLeave}
+          >
             {/* White keys */}
             <div className="flex gap-1">
               {notes.filter(n => !n.isBlack).map((key) => (
                 <button
+                  type="button"
                   key={key.note}
-                  onMouseDown={() => handleNoteClick(key.note)}
-                  onTouchStart={(e) => { e.preventDefault(); handleNoteClick(key.note); }}
+                  data-piano-note={key.note}
+                  onPointerDown={(event) => handleKeyPointerDown(event, key.note)}
                   className={cn(
-                    "w-16 h-48 rounded-b-lg border-2 transition-all duration-150 relative",
+                    "w-16 h-48 rounded-b-lg border-2 transition-all duration-150 relative touch-none",
                     isKeyActive(key.note)
                       ? isKeyMidiActive(key.note)
                         ? "bg-gradient-to-b from-secondary to-accent border-secondary shadow-[0_0_35px_hsl(var(--secondary))] translate-y-1 scale-105"
@@ -296,11 +379,12 @@ const PianoKeyboard = ({ highlightedNotes = [], libraryChordName }: PianoKeyboar
                   
                   return (
                     <button
+                      type="button"
                       key={key.note}
-                      onMouseDown={() => handleNoteClick(key.note)}
-                      onTouchStart={(e) => { e.preventDefault(); handleNoteClick(key.note); }}
+                      data-piano-note={key.note}
+                      onPointerDown={(event) => handleKeyPointerDown(event, key.note)}
                       className={cn(
-                        "w-10 h-32 rounded-b-lg border-2 -ml-5 z-10 transition-all duration-150 pointer-events-auto relative",
+                        "w-10 h-32 rounded-b-lg border-2 -ml-5 z-10 transition-all duration-150 pointer-events-auto relative touch-none",
                         isKeyActive(key.note)
                           ? isKeyMidiActive(key.note)
                             ? "bg-gradient-to-b from-secondary to-accent border-secondary shadow-[0_0_30px_hsl(var(--secondary))] translate-y-1"
