@@ -26,6 +26,8 @@ import {
 } from "../components/StudioChrome";
 import ToolArtwork from "../components/ToolArtwork";
 import { useStudioSession } from "../context/StudioSession";
+import { selectionRoot } from "../lib/musicNotation";
+import { formatNote } from "../lib/noteSelection";
 
 const tools = [
   {
@@ -213,7 +215,7 @@ const Index = () => {
               <div className="legacy-piano">
                 <PianoKeyboard
                   highlightedNotes={selection.notes}
-                  libraryChordName={selection.name}
+                  libraryChordName={formatNote(selection.name)}
                 />
               </div>
             ) : (
@@ -221,7 +223,10 @@ const Index = () => {
                 <section className="focused-tool">
                   {pathname === "/chords" && (
                     <ChordLibrary
-                      initialKey={selection.notes[0]}
+                      initialKey={selectionRoot(
+                        selection.name,
+                        selection.notes[0],
+                      )}
                       onChordSelect={(notes, name) =>
                         select({ notes, name, kind: "chord" })
                       }
@@ -233,7 +238,10 @@ const Index = () => {
                   )}
                   {pathname === "/scales" && (
                     <ScaleExplorer
-                      initialRoot={selection.notes[0]}
+                      initialRoot={selectionRoot(
+                        selection.name,
+                        selection.notes[0],
+                      )}
                       initialScale={
                         selection.kind === "scale"
                           ? selection.name.split(" ").slice(1).join(" ")

@@ -10,6 +10,7 @@ import {
 import AppNavigation from "../components/AppNavigation";
 import { SessionBar, useStopOnNavigation } from "../components/StudioChrome";
 import SoundScope from "../components/SoundScope";
+import { selectionNoteLabels } from "../lib/musicNotation";
 import { useStudioSession } from "../context/StudioSession";
 import { NOTE_NAMES, formatNote, midiToFrequency } from "../lib/noteSelection";
 
@@ -48,6 +49,11 @@ const PitchPipe = () => {
   const s = useStudioSession();
   useStopOnNavigation();
   const root = s.selection.notes[0] || "A";
+  const selectionLabels = selectionNoteLabels(s.selection);
+  const noteLabel = (note: string) => {
+    const index = s.selection.notes.indexOf(note);
+    return index >= 0 ? selectionLabels[index] : formatNote(note);
+  };
   const freq =
     s.selection.frequency ||
     midiToFrequency(
@@ -140,7 +146,7 @@ const PitchPipe = () => {
                   <div className="pitch-center">
                     <span className="studio-eyebrow">SELECTED ROOT</span>
                     <strong>
-                      {formatNote(root)}
+                      {selectionNoteLabels(s.selection)[0] || formatNote(root)}
                       <small>{s.octave}</small>
                     </strong>
                     <span>
@@ -155,7 +161,7 @@ const PitchPipe = () => {
                         className={
                           s.selection.notes.includes(note) ? "selected" : ""
                         }
-                        aria-label={`Select ${formatNote(note)}${s.octave}`}
+                        aria-label={`Select ${noteLabel(note)}${s.octave}`}
                         aria-pressed={s.selection.notes.includes(note)}
                         style={{
                           left: `${50 + Math.cos(a) * 42}%`,
@@ -163,13 +169,13 @@ const PitchPipe = () => {
                         }}
                         onClick={() =>
                           s.select({
-                            name: `${formatNote(note)}${s.octave}`,
+                            name: `${noteLabel(note)}${s.octave}`,
                             notes: [note],
                             kind: "note",
                           })
                         }
                       >
-                        {formatNote(note)}
+                        {noteLabel(note)}
                       </button>
                     );
                   })}

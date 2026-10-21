@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { spelledChordNotes } from "../lib/musicNotation";
+import { formatNote } from "../lib/noteSelection";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -237,9 +239,13 @@ const ChordProgressionBuilder = ({
                                 {idx + 1}.
                               </span>
                               <div>
-                                <p className="font-bold">{chord.name}</p>
+                                <p className="font-bold">
+                                  {formatNote(chord.name)}
+                                </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {chord.notes.join(" - ")}
+                                  {spelledChordNotes(chord.name, chord.notes)
+                                    .map(formatNote)
+                                    .join(" · ")}
                                 </p>
                               </div>
                             </div>
@@ -247,7 +253,7 @@ const ChordProgressionBuilder = ({
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                aria-label={`Move ${chord.name} earlier`}
+                                aria-label={`Move ${formatNote(chord.name)} earlier`}
                                 onClick={() =>
                                   reorderChordInProgression(
                                     selectedProgression!,
@@ -262,7 +268,7 @@ const ChordProgressionBuilder = ({
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                aria-label={`Move ${chord.name} later`}
+                                aria-label={`Move ${formatNote(chord.name)} later`}
                                 onClick={() =>
                                   reorderChordInProgression(
                                     selectedProgression!,
@@ -282,7 +288,7 @@ const ChordProgressionBuilder = ({
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                aria-label={`Remove ${chord.name} from progression`}
+                                aria-label={`Remove ${formatNote(chord.name)} from progression`}
                                 onClick={() =>
                                   removeChordFromProgression(
                                     selectedProgression!,
@@ -322,7 +328,7 @@ const ChordProgressionBuilder = ({
                             className="justify-start"
                           >
                             <Plus className="w-3 h-3 mr-1" />
-                            {chord.name}
+                            {formatNote(chord.name)}
                           </Button>
                         ))}
                       </div>

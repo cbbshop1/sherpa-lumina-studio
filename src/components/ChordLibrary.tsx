@@ -10,66 +10,12 @@ import {
 } from "@/components/ui/select";
 import { BookOpen, Play, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ROOT_SPELLINGS, chordsForRoot } from "../lib/musicNotation";
+import { formatNote } from "../lib/noteSelection";
 
-const KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-
-interface Chord {
-  name: string;
-  suffix: string;
-  notes: string[];
-}
-
-const getChordNotes = (root: string): Chord[] => {
-  const rootIndex = KEYS.indexOf(root);
-
-  const getNote = (semitones: number): string => {
-    const index = (rootIndex + semitones) % 12;
-    return KEYS[index];
-  };
-
-  return [
-    { name: "Major", suffix: "", notes: [root, getNote(4), getNote(7)] },
-    { name: "Minor", suffix: "m", notes: [root, getNote(3), getNote(7)] },
-    {
-      name: "Dominant 7",
-      suffix: "7",
-      notes: [root, getNote(4), getNote(7), getNote(10)],
-    },
-    {
-      name: "Major 7",
-      suffix: "maj7",
-      notes: [root, getNote(4), getNote(7), getNote(11)],
-    },
-    {
-      name: "Minor 7",
-      suffix: "m7",
-      notes: [root, getNote(3), getNote(7), getNote(10)],
-    },
-    {
-      name: "Diminished",
-      suffix: "dim",
-      notes: [root, getNote(3), getNote(6)],
-    },
-    { name: "Augmented", suffix: "aug", notes: [root, getNote(4), getNote(8)] },
-    { name: "Sus2", suffix: "sus2", notes: [root, getNote(2), getNote(7)] },
-    { name: "Sus4", suffix: "sus4", notes: [root, getNote(5), getNote(7)] },
-    {
-      name: "6",
-      suffix: "6",
-      notes: [root, getNote(4), getNote(7), getNote(9)],
-    },
-    {
-      name: "Minor 6",
-      suffix: "m6",
-      notes: [root, getNote(3), getNote(7), getNote(9)],
-    },
-    {
-      name: "9",
-      suffix: "9",
-      notes: [root, getNote(4), getNote(7), getNote(10), getNote(14)],
-    },
-  ];
-};
+const KEYS = ROOT_SPELLINGS;
+const getChordNotes = chordsForRoot;
+type Chord = ReturnType<typeof chordsForRoot>[number];
 
 interface ChordLibraryProps {
   initialKey?: string;
@@ -109,7 +55,7 @@ const ChordLibrary = ({
     onAddFavorite(chordName, chord.notes);
     toast({
       title: "Chord saved!",
-      description: `${chordName} added to favorites`,
+      description: `${formatNote(chordName)} added to favorites`,
     });
   };
 
@@ -152,12 +98,12 @@ const ChordLibrary = ({
               }}
             >
               <SelectTrigger className="w-full md:w-48">
-                <SelectValue />
+                <SelectValue>{formatNote(selectedKey)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {KEYS.map((key) => (
                   <SelectItem key={key} value={key}>
-                    {key}
+                    {formatNote(key)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -176,18 +122,18 @@ const ChordLibrary = ({
                     onClick={() => handleChordClick(chord)}
                     className="chord-choice w-full h-auto py-4 flex flex-col items-center gap-2 transition-all duration-200"
                     aria-pressed={isSelected}
-                    aria-label={`Select ${chordName} ${chord.name}`}
+                    aria-label={`Select ${formatNote(chordName)} ${chord.name}`}
                   >
                     <BookOpen className="w-4 h-4" />
                     <div className="flex flex-col items-center">
                       <span className="font-bold">
-                        {selectedKey}
+                        {formatNote(selectedKey)}
                         {chord.suffix}
                       </span>
                       <span className="text-xs opacity-80">{chord.name}</span>
                     </div>
                     <span className="text-xs opacity-60">
-                      {chord.notes.join(" - ")}
+                      {chord.spellings.map(formatNote).join(" · ")}
                     </span>
                   </Button>
                   <div className="chord-card-actions absolute -top-2 -right-2 flex gap-1 transition-opacity">
@@ -201,7 +147,7 @@ const ChordLibrary = ({
                       }}
                       className="w-8 h-8 rounded-full shadow-lg"
                       title="Play chord"
-                      aria-label={`Play ${chordName} ${chord.name}`}
+                      aria-label={`Play ${formatNote(chordName)} ${chord.name}`}
                     >
                       <Play className="w-3 h-3" />
                     </Button>
@@ -218,8 +164,8 @@ const ChordLibrary = ({
                       }
                       aria-label={
                         isFav
-                          ? `${chordName} already in favorites`
-                          : `Save ${chordName} to favorites`
+                          ? `${formatNote(chordName)} already in favorites`
+                          : `Save ${formatNote(chordName)} to favorites`
                       }
                       disabled={isFav}
                     >

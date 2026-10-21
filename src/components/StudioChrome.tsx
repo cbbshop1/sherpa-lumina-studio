@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { ArrowUpRight, Play, Square, Volume2, Waves } from "lucide-react";
 import { useStudioSession } from "../context/StudioSession";
 import { formatNote } from "../lib/noteSelection";
+import { selectionNoteLabels } from "../lib/musicNotation";
 
 export function SessionBar() {
   const { selection, playing, play, stop, sound, updateSound, error, library } =
@@ -18,8 +19,8 @@ export function SessionBar() {
                 {playing ? "PREVIEW PLAYING" : "YOUR SELECTION"}
               </span>
               <strong>
-                {selection.name || "Choose something to hear"}
-                <small>{selection.notes.map(formatNote).join(" · ")}</small>
+                {formatNote(selection.name) || "Choose something to hear"}
+                <small>{selectionNoteLabels(selection).join(" · ")}</small>
               </strong>
             </div>
           </div>
@@ -71,9 +72,9 @@ export function SelectionPreview() {
         <span className="studio-eyebrow">THE CONNECTING THREAD</span>
         <Waves size={17} />
       </div>
-      <h3>{selection.name || "Your next discovery"}</h3>
+      <h3>{formatNote(selection.name) || "Your next discovery"}</h3>
       <div className="selection-notes" aria-label="Selected notes">
-        {selection.notes.map((note, i) => (
+        {selectionNoteLabels(selection).map((note, i) => (
           <span key={`${note}-${i}`}>{formatNote(note)}</span>
         ))}
       </div>

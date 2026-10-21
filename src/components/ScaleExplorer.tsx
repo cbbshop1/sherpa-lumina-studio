@@ -1,30 +1,16 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  ROOT_SPELLINGS,
+  SCALE_FORMULAS,
+  pitchClass,
+  spellIntervals,
+} from "../lib/musicNotation";
+import { NOTE_NAMES, formatNote } from "../lib/noteSelection";
 
-const scales = {
-  Major: [0, 2, 4, 5, 7, 9, 11],
-  "Natural Minor": [0, 2, 3, 5, 7, 8, 10],
-  "Pentatonic Major": [0, 2, 4, 7, 9],
-  "Pentatonic Minor": [0, 3, 5, 7, 10],
-  Blues: [0, 3, 5, 6, 7, 10],
-  Dorian: [0, 2, 3, 5, 7, 9, 10],
-};
-
-const allNotes = [
-  "C",
-  "C#",
-  "D",
-  "D#",
-  "E",
-  "F",
-  "F#",
-  "G",
-  "G#",
-  "A",
-  "A#",
-  "B",
-];
+const scales = SCALE_FORMULAS;
+const allNotes = ROOT_SPELLINGS;
 
 const ScaleExplorer = ({
   initialRoot = "C",
@@ -46,22 +32,21 @@ const ScaleExplorer = ({
   );
 
   useEffect(() => {
-    const rootIndex = allNotes.indexOf(rootNote);
+    const rootIndex = pitchClass(rootNote);
     onScaleSelect?.(
-      scales[selectedScale].map(
-        (interval) => allNotes[(rootIndex + interval) % 12],
+      scales[selectedScale].intervals.map(
+        (interval) => NOTE_NAMES[(rootIndex + interval) % 12],
       ),
       `${rootNote} ${selectedScale.toLowerCase()}`,
     );
   }, [rootNote, selectedScale, onScaleSelect]);
 
-  const getScaleNotes = () => {
-    const rootIndex = allNotes.indexOf(rootNote);
-    const intervals = scales[selectedScale];
-    return intervals.map((interval) => allNotes[(rootIndex + interval) % 12]);
-  };
-
-  const scaleNotes = getScaleNotes();
+  const formula = scales[selectedScale];
+  const scaleNotes = spellIntervals(
+    rootNote,
+    formula.intervals,
+    formula.degrees,
+  ).map(formatNote);
 
   return (
     <section className="py-20 px-6 bg-slate-darker">
@@ -84,7 +69,7 @@ const ScaleExplorer = ({
               <div className="grid grid-cols-6 gap-2">
                 {allNotes.map((note) => (
                   <Button
-                    key={note}
+                    key={formatNote(note)}
                     onClick={() => setRootNote(note)}
                     variant={rootNote === note ? "default" : "outline"}
                     className={cn(
@@ -92,7 +77,7 @@ const ScaleExplorer = ({
                       rootNote === note && "glow-blue",
                     )}
                   >
-                    {note}
+                    {formatNote(note)}
                   </Button>
                 ))}
               </div>
@@ -124,7 +109,7 @@ const ScaleExplorer = ({
 
           <div className="p-6 rounded-2xl bg-card border border-border">
             <h3 className="text-lg font-semibold mb-4 text-center">
-              {rootNote} {selectedScale} Scale
+              {formatNote(rootNote)} {selectedScale} Scale
             </h3>
             <div className="flex flex-wrap justify-center gap-3">
               {scaleNotes.map((note, index) => (
@@ -133,7 +118,7 @@ const ScaleExplorer = ({
                   className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center font-bold text-xl shadow-lg glow-blue animate-slide-up"
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
-                  {note}
+                  {formatNote(note)}
                 </div>
               ))}
             </div>
