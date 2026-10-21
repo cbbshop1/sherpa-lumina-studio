@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { BookOpen, Play, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -15,7 +21,7 @@ interface Chord {
 
 const getChordNotes = (root: string): Chord[] => {
   const rootIndex = KEYS.indexOf(root);
-  
+
   const getNote = (semitones: number): string => {
     const index = (rootIndex + semitones) % 12;
     return KEYS[index];
@@ -24,30 +30,68 @@ const getChordNotes = (root: string): Chord[] => {
   return [
     { name: "Major", suffix: "", notes: [root, getNote(4), getNote(7)] },
     { name: "Minor", suffix: "m", notes: [root, getNote(3), getNote(7)] },
-    { name: "Dominant 7", suffix: "7", notes: [root, getNote(4), getNote(7), getNote(10)] },
-    { name: "Major 7", suffix: "maj7", notes: [root, getNote(4), getNote(7), getNote(11)] },
-    { name: "Minor 7", suffix: "m7", notes: [root, getNote(3), getNote(7), getNote(10)] },
-    { name: "Diminished", suffix: "dim", notes: [root, getNote(3), getNote(6)] },
+    {
+      name: "Dominant 7",
+      suffix: "7",
+      notes: [root, getNote(4), getNote(7), getNote(10)],
+    },
+    {
+      name: "Major 7",
+      suffix: "maj7",
+      notes: [root, getNote(4), getNote(7), getNote(11)],
+    },
+    {
+      name: "Minor 7",
+      suffix: "m7",
+      notes: [root, getNote(3), getNote(7), getNote(10)],
+    },
+    {
+      name: "Diminished",
+      suffix: "dim",
+      notes: [root, getNote(3), getNote(6)],
+    },
     { name: "Augmented", suffix: "aug", notes: [root, getNote(4), getNote(8)] },
     { name: "Sus2", suffix: "sus2", notes: [root, getNote(2), getNote(7)] },
     { name: "Sus4", suffix: "sus4", notes: [root, getNote(5), getNote(7)] },
-    { name: "6", suffix: "6", notes: [root, getNote(4), getNote(7), getNote(9)] },
-    { name: "Minor 6", suffix: "m6", notes: [root, getNote(3), getNote(7), getNote(9)] },
-    { name: "9", suffix: "9", notes: [root, getNote(4), getNote(7), getNote(10), getNote(14)] },
+    {
+      name: "6",
+      suffix: "6",
+      notes: [root, getNote(4), getNote(7), getNote(9)],
+    },
+    {
+      name: "Minor 6",
+      suffix: "m6",
+      notes: [root, getNote(3), getNote(7), getNote(9)],
+    },
+    {
+      name: "9",
+      suffix: "9",
+      notes: [root, getNote(4), getNote(7), getNote(10), getNote(14)],
+    },
   ];
 };
 
 interface ChordLibraryProps {
+  initialKey?: string;
   onChordSelect: (notes: string[], chordName: string) => void;
   selectedChordNotes: string[];
-  onPlayChord: (notes: string[]) => void;
+  onPlayChord: (notes: string[], name?: string) => void;
   onAddFavorite: (name: string, notes: string[]) => void;
   isFavorite: (name: string) => boolean;
 }
 
-const ChordLibrary = ({ onChordSelect, selectedChordNotes, onPlayChord, onAddFavorite, isFavorite }: ChordLibraryProps) => {
+const ChordLibrary = ({
+  initialKey = "C",
+  onChordSelect,
+  selectedChordNotes,
+  onPlayChord,
+  onAddFavorite,
+  isFavorite,
+}: ChordLibraryProps) => {
   const { toast } = useToast();
-  const [selectedKey, setSelectedKey] = useState("C");
+  const [selectedKey, setSelectedKey] = useState(
+    KEYS.includes(initialKey) ? initialKey : "C",
+  );
   const chords = getChordNotes(selectedKey);
 
   const handleChordClick = (chord: Chord) => {
@@ -71,7 +115,7 @@ const ChordLibrary = ({ onChordSelect, selectedChordNotes, onPlayChord, onAddFav
 
   const isChordSelected = (notes: string[]) => {
     if (notes.length !== selectedChordNotes.length) return false;
-    return notes.every(note => selectedChordNotes.includes(note));
+    return notes.every((note) => selectedChordNotes.includes(note));
   };
 
   return (
@@ -91,7 +135,22 @@ const ChordLibrary = ({ onChordSelect, selectedChordNotes, onPlayChord, onAddFav
             <label className="block text-sm font-medium mb-2 text-foreground">
               Select Key
             </label>
-            <Select value={selectedKey} onValueChange={setSelectedKey}>
+            <Select
+              value={selectedKey}
+              onValueChange={(nextKey) => {
+                const activeIndex = chords.findIndex((chord) =>
+                  isChordSelected(chord.notes),
+                );
+                setSelectedKey(nextKey);
+                if (activeIndex >= 0) {
+                  const nextChord = getChordNotes(nextKey)[activeIndex];
+                  onChordSelect(
+                    nextChord.notes,
+                    `${nextKey}${nextChord.suffix}`,
+                  );
+                }
+              }}
+            >
               <SelectTrigger className="w-full md:w-48">
                 <SelectValue />
               </SelectTrigger>
@@ -115,31 +174,34 @@ const ChordLibrary = ({ onChordSelect, selectedChordNotes, onPlayChord, onAddFav
                   <Button
                     variant={isSelected ? "default" : "outline"}
                     onClick={() => handleChordClick(chord)}
-                    className="w-full h-auto py-4 flex flex-col items-center gap-2 transition-all duration-200"
+                    className="chord-choice w-full h-auto py-4 flex flex-col items-center gap-2 transition-all duration-200"
+                    aria-pressed={isSelected}
+                    aria-label={`Select ${chordName} ${chord.name}`}
                   >
                     <BookOpen className="w-4 h-4" />
                     <div className="flex flex-col items-center">
                       <span className="font-bold">
-                        {selectedKey}{chord.suffix}
+                        {selectedKey}
+                        {chord.suffix}
                       </span>
-                      <span className="text-xs opacity-80">
-                        {chord.name}
-                      </span>
+                      <span className="text-xs opacity-80">{chord.name}</span>
                     </div>
                     <span className="text-xs opacity-60">
                       {chord.notes.join(" - ")}
                     </span>
                   </Button>
-                  <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="chord-card-actions absolute -top-2 -right-2 flex gap-1 transition-opacity">
                     <Button
                       size="icon"
                       variant="secondary"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onPlayChord(chord.notes);
+                        onChordSelect(chord.notes, chordName);
+                        onPlayChord(chord.notes, chordName);
                       }}
                       className="w-8 h-8 rounded-full shadow-lg"
                       title="Play chord"
+                      aria-label={`Play ${chordName} ${chord.name}`}
                     >
                       <Play className="w-3 h-3" />
                     </Button>
@@ -151,10 +213,19 @@ const ChordLibrary = ({ onChordSelect, selectedChordNotes, onPlayChord, onAddFav
                         handleAddFavorite(chord);
                       }}
                       className="w-8 h-8 rounded-full shadow-lg"
-                      title={isFav ? "Already in favorites" : "Add to favorites"}
+                      title={
+                        isFav ? "Already in favorites" : "Add to favorites"
+                      }
+                      aria-label={
+                        isFav
+                          ? `${chordName} already in favorites`
+                          : `Save ${chordName} to favorites`
+                      }
                       disabled={isFav}
                     >
-                      <Heart className={`w-3 h-3 ${isFav ? "fill-current" : ""}`} />
+                      <Heart
+                        className={`w-3 h-3 ${isFav ? "fill-current" : ""}`}
+                      />
                     </Button>
                   </div>
                 </div>

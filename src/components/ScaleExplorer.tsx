@@ -1,26 +1,64 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const scales = {
-  "Major": [0, 2, 4, 5, 7, 9, 11],
+  Major: [0, 2, 4, 5, 7, 9, 11],
   "Natural Minor": [0, 2, 3, 5, 7, 8, 10],
   "Pentatonic Major": [0, 2, 4, 7, 9],
   "Pentatonic Minor": [0, 3, 5, 7, 10],
-  "Blues": [0, 3, 5, 6, 7, 10],
-  "Dorian": [0, 2, 3, 5, 7, 9, 10],
+  Blues: [0, 3, 5, 6, 7, 10],
+  Dorian: [0, 2, 3, 5, 7, 9, 10],
 };
 
-const allNotes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const allNotes = [
+  "C",
+  "C#",
+  "D",
+  "D#",
+  "E",
+  "F",
+  "F#",
+  "G",
+  "G#",
+  "A",
+  "A#",
+  "B",
+];
 
-const ScaleExplorer = () => {
-  const [selectedScale, setSelectedScale] = useState<keyof typeof scales>("Major");
-  const [rootNote, setRootNote] = useState("C");
+const ScaleExplorer = ({
+  initialRoot = "C",
+  initialScale,
+  onScaleSelect,
+}: {
+  initialRoot?: string;
+  initialScale?: string;
+  onScaleSelect?: (notes: string[], name: string) => void;
+}) => {
+  const [selectedScale, setSelectedScale] = useState<keyof typeof scales>(
+    () =>
+      (Object.keys(scales).find(
+        (name) => name.toLowerCase() === initialScale,
+      ) as keyof typeof scales) || "Major",
+  );
+  const [rootNote, setRootNote] = useState(
+    allNotes.includes(initialRoot) ? initialRoot : "C",
+  );
+
+  useEffect(() => {
+    const rootIndex = allNotes.indexOf(rootNote);
+    onScaleSelect?.(
+      scales[selectedScale].map(
+        (interval) => allNotes[(rootIndex + interval) % 12],
+      ),
+      `${rootNote} ${selectedScale.toLowerCase()}`,
+    );
+  }, [rootNote, selectedScale, onScaleSelect]);
 
   const getScaleNotes = () => {
     const rootIndex = allNotes.indexOf(rootNote);
     const intervals = scales[selectedScale];
-    return intervals.map(interval => allNotes[(rootIndex + interval) % 12]);
+    return intervals.map((interval) => allNotes[(rootIndex + interval) % 12]);
   };
 
   const scaleNotes = getScaleNotes();
@@ -40,7 +78,9 @@ const ScaleExplorer = () => {
         <div className="glass-effect p-8 rounded-3xl">
           <div className="grid md:grid-cols-2 gap-8 mb-8">
             <div>
-              <label className="block text-sm font-semibold mb-3">Root Note</label>
+              <label className="block text-sm font-semibold mb-3">
+                Root Note
+              </label>
               <div className="grid grid-cols-6 gap-2">
                 {allNotes.map((note) => (
                   <Button
@@ -49,7 +89,7 @@ const ScaleExplorer = () => {
                     variant={rootNote === note ? "default" : "outline"}
                     className={cn(
                       "font-semibold transition-all",
-                      rootNote === note && "glow-blue"
+                      rootNote === note && "glow-blue",
                     )}
                   >
                     {note}
@@ -59,16 +99,20 @@ const ScaleExplorer = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-3">Scale Type</label>
+              <label className="block text-sm font-semibold mb-3">
+                Scale Type
+              </label>
               <div className="grid grid-cols-2 gap-2">
                 {Object.keys(scales).map((scale) => (
                   <Button
                     key={scale}
-                    onClick={() => setSelectedScale(scale as keyof typeof scales)}
+                    onClick={() =>
+                      setSelectedScale(scale as keyof typeof scales)
+                    }
                     variant={selectedScale === scale ? "default" : "outline"}
                     className={cn(
                       "font-semibold transition-all",
-                      selectedScale === scale && "glow-purple"
+                      selectedScale === scale && "glow-purple",
                     )}
                   >
                     {scale}

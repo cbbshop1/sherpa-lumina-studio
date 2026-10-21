@@ -20,7 +20,8 @@ import {
   ArrowDown,
   Save,
 } from "lucide-react";
-import { useChordProgressions, SavedChord, ChordProgression } from "@/hooks/useChordProgressions";
+import { SavedChord, ChordProgression } from "@/hooks/useChordProgressions";
+import { useStudioSession } from "@/context/StudioSession";
 
 interface ChordProgressionBuilderProps {
   onPlayProgression: (chords: SavedChord[], duration: number) => void;
@@ -31,10 +32,21 @@ const ChordProgressionBuilder = ({
   onPlayProgression,
   favorites,
 }: ChordProgressionBuilderProps) => {
-  const { progressions, createProgression, deleteProgression, addChordToProgression, removeChordFromProgression, reorderChordInProgression } = useChordProgressions();
+  const {
+    library: {
+      progressions,
+      createProgression,
+      deleteProgression,
+      addChordToProgression,
+      removeChordFromProgression,
+      reorderChordInProgression,
+    },
+  } = useStudioSession();
   const [newProgressionName, setNewProgressionName] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [selectedProgression, setSelectedProgression] = useState<string | null>(null);
+  const [selectedProgression, setSelectedProgression] = useState<string | null>(
+    null,
+  );
   const [chordDuration, setChordDuration] = useState(2);
 
   const handleCreateProgression = () => {
@@ -58,7 +70,9 @@ const ChordProgressionBuilder = ({
     }
   };
 
-  const currentProgression = progressions.find((p) => p.id === selectedProgression);
+  const currentProgression = progressions.find(
+    (p) => p.id === selectedProgression,
+  );
 
   return (
     <section className="py-20 px-6">
@@ -80,7 +94,10 @@ const ChordProgressionBuilder = ({
                 <Music2 className="w-5 h-5" />
                 My Progressions
               </h3>
-              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <Dialog
+                open={isCreateDialogOpen}
+                onOpenChange={setIsCreateDialogOpen}
+              >
                 <DialogTrigger asChild>
                   <Button size="sm" className="gap-2">
                     <Plus className="w-4 h-4" />
@@ -99,9 +116,14 @@ const ChordProgressionBuilder = ({
                       placeholder="e.g., I-IV-V-I"
                       value={newProgressionName}
                       onChange={(e) => setNewProgressionName(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleCreateProgression()}
+                      onKeyDown={(e) =>
+                        e.key === "Enter" && handleCreateProgression()
+                      }
                     />
-                    <Button onClick={handleCreateProgression} className="w-full">
+                    <Button
+                      onClick={handleCreateProgression}
+                      className="w-full"
+                    >
                       Create Progression
                     </Button>
                   </div>
@@ -132,7 +154,8 @@ const ChordProgressionBuilder = ({
                         <div className="flex-1">
                           <h4 className="font-bold">{progression.name}</h4>
                           <p className="text-sm text-muted-foreground">
-                            {progression.chords.length} chord{progression.chords.length !== 1 ? "s" : ""}
+                            {progression.chords.length} chord
+                            {progression.chords.length !== 1 ? "s" : ""}
                           </p>
                         </div>
                         <div className="flex gap-2">
@@ -144,12 +167,14 @@ const ChordProgressionBuilder = ({
                               handlePlayProgression(progression);
                             }}
                             disabled={progression.chords.length === 0}
+                            aria-label={`Play progression ${progression.name}`}
                           >
                             <Play className="w-4 h-4" />
                           </Button>
                           <Button
                             size="icon"
                             variant="ghost"
+                            aria-label={`Delete progression ${progression.name}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               deleteProgression(progression.id);
@@ -172,7 +197,9 @@ const ChordProgressionBuilder = ({
           {/* Progression Builder */}
           <Card className="glass-effect p-6 rounded-3xl">
             <h3 className="text-xl font-bold mb-4">
-              {currentProgression ? `Editing: ${currentProgression.name}` : "Select a Progression"}
+              {currentProgression
+                ? `Editing: ${currentProgression.name}`
+                : "Select a Progression"}
             </h3>
 
             {currentProgression ? (
@@ -187,7 +214,9 @@ const ChordProgressionBuilder = ({
                     max="10"
                     step="0.5"
                     value={chordDuration}
-                    onChange={(e) => setChordDuration(parseFloat(e.target.value))}
+                    onChange={(e) =>
+                      setChordDuration(parseFloat(e.target.value))
+                    }
                     className="w-20"
                   />
                   <span className="text-sm text-muted-foreground">seconds</span>
@@ -218,7 +247,14 @@ const ChordProgressionBuilder = ({
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                onClick={() => reorderChordInProgression(selectedProgression!, idx, Math.max(0, idx - 1))}
+                                aria-label={`Move ${chord.name} earlier`}
+                                onClick={() =>
+                                  reorderChordInProgression(
+                                    selectedProgression!,
+                                    idx,
+                                    Math.max(0, idx - 1),
+                                  )
+                                }
                                 disabled={idx === 0}
                               >
                                 <ArrowUp className="w-4 h-4" />
@@ -226,15 +262,33 @@ const ChordProgressionBuilder = ({
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                onClick={() => reorderChordInProgression(selectedProgression!, idx, Math.min(currentProgression.chords.length - 1, idx + 1))}
-                                disabled={idx === currentProgression.chords.length - 1}
+                                aria-label={`Move ${chord.name} later`}
+                                onClick={() =>
+                                  reorderChordInProgression(
+                                    selectedProgression!,
+                                    idx,
+                                    Math.min(
+                                      currentProgression.chords.length - 1,
+                                      idx + 1,
+                                    ),
+                                  )
+                                }
+                                disabled={
+                                  idx === currentProgression.chords.length - 1
+                                }
                               >
                                 <ArrowDown className="w-4 h-4" />
                               </Button>
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                onClick={() => removeChordFromProgression(selectedProgression!, idx)}
+                                aria-label={`Remove ${chord.name} from progression`}
+                                onClick={() =>
+                                  removeChordFromProgression(
+                                    selectedProgression!,
+                                    idx,
+                                  )
+                                }
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -254,7 +308,8 @@ const ChordProgressionBuilder = ({
                   <ScrollArea className="h-[120px]">
                     {favorites.length === 0 ? (
                       <div className="text-center py-4 text-sm text-muted-foreground">
-                        No favorite chords yet. Save some from the Chord Library!
+                        No favorite chords yet. Save some from the Chord
+                        Library!
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 gap-2">

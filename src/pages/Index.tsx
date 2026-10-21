@@ -1,101 +1,289 @@
-import { useState } from "react";
-import AppNavigation from "@/components/AppNavigation";
-import Hero from "@/components/Hero";
-import PianoKeyboard from "@/components/PianoKeyboard";
-import ChordLibrary from "@/components/ChordLibrary";
-import ChordProgressionBuilder from "@/components/ChordProgressionBuilder";
-import ScaleExplorer from "@/components/ScaleExplorer";
-import { usePianoAudio } from "@/hooks/usePianoAudio";
-import { useChordProgressions, SavedChord } from "@/hooks/useChordProgressions";
+import { useCallback } from "react";
+import { Link, useLocation } from "react-router-dom";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  AudioLines,
+  ChevronRight,
+  Heart,
+  Layers3,
+  Music2,
+  Piano,
+  Radio,
+  SlidersHorizontal,
+  Sparkles,
+  Waves,
+} from "lucide-react";
+import AppNavigation from "../components/AppNavigation";
+import PianoKeyboard from "../components/PianoKeyboard";
+import ChordLibrary from "../components/ChordLibrary";
+import ChordProgressionBuilder from "../components/ChordProgressionBuilder";
+import ScaleExplorer from "../components/ScaleExplorer";
+import {
+  SessionBar,
+  SelectionPreview,
+  useStopOnNavigation,
+} from "../components/StudioChrome";
+import ToolArtwork from "../components/ToolArtwork";
+import { useStudioSession } from "../context/StudioSession";
+
+const tools = [
+  {
+    path: "/piano",
+    kind: "piano",
+    title: "The piano",
+    label: "PLAY SOMETHING",
+    description: "Find a melody, play a chord, or let your fingers wander.",
+    icon: Piano,
+    color: "peach",
+  },
+  {
+    path: "/chords",
+    kind: "chords",
+    title: "Chord library",
+    label: "A LITTLE HARMONY",
+    description: "Choose a chord. See its notes. Hear how they fit together.",
+    icon: Music2,
+    color: "sage",
+  },
+  {
+    path: "/scales",
+    kind: "scales",
+    title: "Scale explorer",
+    label: "FOLLOW A PATTERN",
+    description: "Explore the small steps that give a scale its character.",
+    icon: Sparkles,
+    color: "blue",
+  },
+  {
+    path: "/progressions",
+    kind: "progressions",
+    title: "Progressions",
+    label: "ONE THING LEADS TO ANOTHER",
+    description: "Collect a few favorite chords and find where they take you.",
+    icon: Layers3,
+    color: "lavender",
+  },
+  {
+    path: "/pitch-pipe",
+    kind: "pitch",
+    title: "Pitch & tone",
+    label: "GET A FEEL FOR FREQUENCY",
+    description: "Find a reference pitch. Shape a tone. Look inside the sound.",
+    icon: Radio,
+    color: "gold",
+  },
+  {
+    path: "/studio",
+    kind: "studio",
+    title: "The studio",
+    label: "MAKE A LITTLE MUSIC",
+    description:
+      "Layer a beat, sketch a melody, and turn an idea into a pattern.",
+    icon: SlidersHorizontal,
+    color: "rose",
+  },
+];
 
 const Index = () => {
-  const [highlightedNotes, setHighlightedNotes] = useState<string[]>([]);
-  const [libraryChordName, setLibraryChordName] = useState<string>("");
-  const { playChordNote, stopAllNotes } = usePianoAudio();
-  const { favorites, addFavorite, isFavorite } = useChordProgressions();
-
-  const handleChordSelect = (notes: string[], chordName: string) => {
-    setHighlightedNotes(notes);
-    setLibraryChordName(chordName);
+  const { pathname } = useLocation();
+  const session = useStudioSession();
+  const { selection, select, play, library } = session;
+  useStopOnNavigation();
+  const chooseScale = useCallback(
+    (notes: string[], name: string) => select({ notes, name, kind: "scale" }),
+    [select],
+  );
+  const active = tools.find((t) => t.path === pathname);
+  const isHome = pathname === "/";
+  const playChord = (notes: string[], name?: string) => {
+    session.stop();
+    const next = {
+      notes,
+      name:
+        name ||
+        (selection.notes.join() === notes.join()
+          ? selection.name
+          : `${notes[0]} chord`),
+      kind: "chord" as const,
+    };
+    select(next);
+    void play(next);
   };
-
-  const handlePlayChord = (notes: string[]) => {
-    // Stop any currently playing notes
-    stopAllNotes();
-    
-    // Play each note in the chord with a slight delay for a strummed effect
-    notes.forEach((note, index) => {
-      setTimeout(() => {
-        playChordNote(note, false);
-      }, index * 50); // 50ms delay between each note
-    });
-
-    // Stop the chord and clear highlighting after 2 seconds
-    setTimeout(() => {
-      stopAllNotes();
-      setHighlightedNotes([]);
-      setLibraryChordName("");
-    }, 2000);
-  };
-
-  const handlePlayProgression = (chords: SavedChord[], duration: number) => {
-    stopAllNotes();
-    
-    chords.forEach((chord, index) => {
-      setTimeout(() => {
-        // Stop previous chord
-        if (index > 0) {
-          stopAllNotes();
-        }
-        
-        // Play current chord with strum effect
-        chord.notes.forEach((note, noteIndex) => {
-          setTimeout(() => {
-            playChordNote(note, false);
-          }, noteIndex * 50);
-        });
-      }, index * duration);
-    });
-
-    // Stop all notes and clear highlighting after the last chord
-    setTimeout(() => {
-      stopAllNotes();
-      setHighlightedNotes([]);
-      setLibraryChordName("");
-    }, chords.length * duration);
-  };
-
   return (
-    <div className="min-h-screen">
+    <div className="lumina-app">
       <AppNavigation />
-      {/* Add padding for fixed navigation */}
-      <div className="pt-16">
-        <Hero />
-        <div id="piano">
-          <PianoKeyboard 
-            highlightedNotes={highlightedNotes} 
-            libraryChordName={libraryChordName}
-          />
-        </div>
-        <div id="chord-library">
-          <ChordLibrary 
-            onChordSelect={handleChordSelect}
-            selectedChordNotes={highlightedNotes}
-            onPlayChord={handlePlayChord}
-            onAddFavorite={addFavorite}
-            isFavorite={isFavorite}
-          />
-        </div>
-        <ChordProgressionBuilder 
-          onPlayProgression={handlePlayProgression}
-          favorites={favorites}
-        />
-        <div id="scale-explorer">
-          <ScaleExplorer />
-        </div>
-      </div>
+      <main className="lumina-main">
+        {isHome ? (
+          <>
+            <section className="dashboard-hero">
+              <div>
+                <p className="studio-eyebrow">
+                  <span className="eyebrow-rule" /> LEARN A LITTLE. PLAY A
+                  LITTLE.
+                </p>
+                <h1>
+                  Follow your <em>ear.</em>
+                </h1>
+                <p>
+                  A place for musical curiosity.
+                  <br />
+                  Six connected tools. Plenty of room to explore.
+                </p>
+              </div>
+              <div className="hero-orbit" aria-hidden="true">
+                <div />
+                <div />
+                <Waves size={52} strokeWidth={1} />
+                <span>
+                  GOOD THINGS START
+                  <br />
+                  WITH A LITTLE CURIOSITY
+                </span>
+              </div>
+            </section>
+            <section className="dashboard-section">
+              <div className="dashboard-section-heading">
+                <h2>Your workbench</h2>
+                <span>
+                  PICK A TOOL AND SETTLE IN <ChevronRight size={13} />
+                </span>
+              </div>
+              <div className="lumina-tool-grid">
+                {tools.map((tool, i) => (
+                  <Link
+                    key={tool.path}
+                    to={tool.path}
+                    className={`lumina-tool-card color-${tool.color}`}
+                  >
+                    <div className="tool-card-top">
+                      <span className="tool-index">0{i + 1} /</span>
+                      <tool.icon size={18} />
+                      <span className="tool-open-arrow">
+                        <ArrowUpRight size={19} />
+                      </span>
+                    </div>
+                    <ToolArtwork kind={tool.kind} />
+                    <div className="tool-card-copy">
+                      <span className="studio-eyebrow">{tool.label}</span>
+                      <h3>{tool.title}</h3>
+                      <p>{tool.description}</p>
+                    </div>
+                    <span className="tool-card-open">
+                      OPEN TOOL <ChevronRight size={13} />
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+            <section className="dashboard-bottom">
+              <span>
+                <Heart size={14} /> No right answers here. Just things to hear.
+              </span>
+              <span>YOUR FAVORITES STAY IN THIS BROWSER</span>
+            </section>
+          </>
+        ) : (
+          <>
+            <nav className="workspace-nav" aria-label="Explore tools">
+              <Link className="back-to-tools" to="/">
+                <ArrowLeft size={15} /> All tools
+              </Link>
+              <div>
+                {tools.slice(0, 4).map((t) => (
+                  <Link
+                    key={t.path}
+                    to={t.path}
+                    aria-current={pathname === t.path ? "page" : undefined}
+                    className={pathname === t.path ? "active" : ""}
+                  >
+                    {t.title}
+                  </Link>
+                ))}
+              </div>
+            </nav>
+            <div className="workspace-title">
+              <div>
+                <p className="studio-eyebrow">YOUR MUSICAL WORKBENCH</p>
+                <h1>{active?.title}</h1>
+              </div>
+              <p>{active?.description}</p>
+            </div>
+            {pathname === "/piano" ? (
+              <div className="legacy-piano">
+                <PianoKeyboard
+                  highlightedNotes={selection.notes}
+                  libraryChordName={selection.name}
+                />
+              </div>
+            ) : (
+              <div className="learning-layout">
+                <section className="focused-tool">
+                  {pathname === "/chords" && (
+                    <ChordLibrary
+                      initialKey={selection.notes[0]}
+                      onChordSelect={(notes, name) =>
+                        select({ notes, name, kind: "chord" })
+                      }
+                      selectedChordNotes={selection.notes}
+                      onPlayChord={playChord}
+                      onAddFavorite={library.addFavorite}
+                      isFavorite={library.isFavorite}
+                    />
+                  )}
+                  {pathname === "/scales" && (
+                    <ScaleExplorer
+                      initialRoot={selection.notes[0]}
+                      initialScale={
+                        selection.kind === "scale"
+                          ? selection.name.split(" ").slice(1).join(" ")
+                          : undefined
+                      }
+                      onScaleSelect={chooseScale}
+                    />
+                  )}
+                  {pathname === "/progressions" && (
+                    <ChordProgressionBuilder
+                      onPlayProgression={session.playProgression}
+                      favorites={library.favorites}
+                    />
+                  )}
+                </section>
+                <div className="learning-sidebar">
+                  <SelectionPreview />
+                  <aside className="discovery-note">
+                    <span className="studio-eyebrow">
+                      <AudioLines size={14} /> TRY A SMALL EXPERIMENT
+                    </span>
+                    <p>
+                      {pathname === "/chords"
+                        ? "Choose major, then minor on the same root. Only one note moves. How much does the feeling change?"
+                        : pathname === "/scales"
+                          ? "Compare a major scale with natural minor. Look for the notes that move, then listen to each selection."
+                          : "Save chords with the heart in Chord library, then bring them here. Start with just two and listen to the movement."}
+                    </p>
+                    <Link
+                      to={
+                        pathname === "/progressions"
+                          ? "/chords"
+                          : "/pitch-pipe?view=waveform"
+                      }
+                      className="studio-text-link"
+                    >
+                      {pathname === "/progressions"
+                        ? "Find some chords"
+                        : "See the sound"}
+                      <ArrowUpRight size={14} />
+                    </Link>
+                  </aside>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </main>
+      <SessionBar />
     </div>
   );
 };
-
 export default Index;

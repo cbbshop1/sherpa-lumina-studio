@@ -1,5 +1,7 @@
 # Sherpa Lumina Studio
 
+Version 0.2.0 introduces a dashboard with six focused workspaces, a warm studio theme, and a shared musical selection. Choosing a chord or scale previews its notes immediately; playback is a separate action. Your selection follows you between learning tools. The existing piano and sequencer retain their own instrument engines.
+
 Sherpa Lumina Studio is a browser-based music theory and composition workspace. It combines an interactive learning surface for chords and scales, a pitch-pipe utility for ear training, and a lightweight multi-track sequencer built on the Web Audio and Web MIDI APIs.
 
 The app runs entirely in the browser. Chord favorites and chord progressions are saved in `localStorage`; generated MIDI and audio captures are downloaded from the client.
@@ -27,7 +29,11 @@ The app runs entirely in the browser. Chord favorites and chord progressions are
 
 ### `/`
 
-The home route is the music theory workspace. It includes:
+The home route is a dashboard of cards linking to Piano, Chord Library, Scale Explorer, Progressions, Pitch & Tone, and Studio. Each card opens a workspace instead of scrolling to a section on one long page.
+
+### `/piano`, `/chords`, `/scales`, `/progressions`
+
+These focused learning workspaces include:
 
 - A virtual piano with single-note and chord modes
 - Instrument selection for the piano sound
@@ -45,14 +51,17 @@ Favorites and progressions are persisted in the browser under:
 
 ### `/pitch-pipe`
 
-The pitch-pipe route is an ear-training and tone-reference tool. It provides:
+The pitch-pipe route has three views: Pitch Pipe, See the Sound, and Tone Generator. It provides:
 
 - A circular 12-note pitch pipe
 - Octave selection from 2 through 6
-- Volume control
-- A live audio visualizer
-- A chord builder with selectable root, octave, chord type, and waveform
-- An advanced tone generator panel
+- A shared playback and volume bar
+- Waveform and logarithmic frequency spectrum views
+- The current chord or scale carried from the learning workspaces
+- Sine, triangle, square, and sawtooth voices with brightness, attack, and release controls
+- An exact-frequency tone generator (20 Hz through 16 kHz)
+
+Use `/pitch-pipe?view=waveform` to open the sound visualization directly. Playback stops on navigation, Escape, or when the page is hidden. Selection remains visible when playback stops. The shared preview never resumes automatically.
 
 The audio context is initialized after the first user interaction, which is required by modern browser audio policies.
 
@@ -131,6 +140,21 @@ Run linting:
 ```sh
 npm run lint
 ```
+
+Run TypeScript checks and the audio/storage regression tests (Node.js 22.6 or newer for the tests):
+
+```sh
+npm run typecheck
+npm test
+```
+
+The automated audio tests use a controlled Web Audio mock. They verify voice ownership, scheduling, cancellation, gain normalization, and analyser routing. They do not confirm speaker output or physical MIDI behavior.
+
+## Versioning
+
+Use a `codex/` feature branch for changes, commit a coherent working state, and push the branch before ending a work session. Review the pull request before updating `main`; a GitHub branch and a deployed website are separate states. The October 2026 remodel preserves the prior local MIDI/sequencer work and the pre-existing piano edits in separate commits before the dashboard commit.
+
+See `docs/remodel-2026-10-21.md` for the review scope and verification record.
 
 ## Project Structure
 
