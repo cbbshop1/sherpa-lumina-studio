@@ -90,7 +90,7 @@ const Index = () => {
   const { pathname: rawPathname } = useLocation();
   const pathname = rawPathname.replace(/\/+$/, "") || "/";
   const session = useStudioSession();
-  const { selection, select, play, library } = session;
+  const { selection, select, library } = session;
   useStopOnNavigation();
   const chooseScale = useCallback(
     (notes: string[], name: string) => select({ notes, name, kind: "scale" }),
@@ -99,7 +99,6 @@ const Index = () => {
   const active = tools.find((t) => t.path === pathname);
   const isHome = pathname === "/";
   const playChord = (notes: string[], name?: string) => {
-    session.stop();
     const next = {
       notes,
       name:
@@ -109,12 +108,17 @@ const Index = () => {
           : `${notes[0]} chord`),
       kind: "chord" as const,
     };
-    select(next);
-    void play(next);
+    session.togglePlay(next);
   };
   return (
     <div
-      className={pathname === "/piano" ? "lumina-app piano-page" : "lumina-app"}
+      className={
+        pathname === "/piano"
+          ? "lumina-app piano-page"
+          : pathname === "/scales"
+            ? "lumina-app scale-page"
+            : "lumina-app"
+      }
     >
       <AppNavigation />
       <main className="lumina-main">
@@ -216,7 +220,11 @@ const Index = () => {
             {pathname === "/piano" ? (
               <PianoKeyboard />
             ) : (
-              <div className="learning-layout">
+              <div
+                className={
+                  pathname === "/scales" ? "scale-layout" : "learning-layout"
+                }
+              >
                 <section className="focused-tool">
                   {pathname === "/chords" && (
                     <ChordLibrary
@@ -229,6 +237,11 @@ const Index = () => {
                       }
                       selectedChordNotes={selection.notes}
                       onPlayChord={playChord}
+                      playingChordName={
+                        session.playing && selection.kind === "chord"
+                          ? selection.name
+                          : undefined
+                      }
                       onAddFavorite={library.addFavorite}
                       isFavorite={library.isFavorite}
                     />
@@ -254,34 +267,36 @@ const Index = () => {
                     />
                   )}
                 </section>
-                <div className="learning-sidebar">
-                  <SelectionPreview />
-                  <aside className="discovery-note">
-                    <span className="studio-eyebrow">
-                      <AudioLines size={14} /> TRY A SMALL EXPERIMENT
-                    </span>
-                    <p>
-                      {pathname === "/chords"
-                        ? "Choose major, then minor on the same root. Only one note moves. How much does the feeling change?"
-                        : pathname === "/scales"
-                          ? "Compare a major scale with natural minor. Look for the notes that move, then listen to each selection."
-                          : "Save chords with the heart in Chord library, then bring them here. Start with just two and listen to the movement."}
-                    </p>
-                    <Link
-                      to={
-                        pathname === "/progressions"
-                          ? "/chords"
-                          : "/pitch-pipe?view=waveform"
-                      }
-                      className="studio-text-link"
-                    >
-                      {pathname === "/progressions"
-                        ? "Find some chords"
-                        : "See the sound"}
-                      <ArrowUpRight size={14} />
-                    </Link>
-                  </aside>
-                </div>
+                {pathname !== "/scales" && (
+                  <div className="learning-sidebar">
+                    <SelectionPreview />
+                    <aside className="discovery-note">
+                      <span className="studio-eyebrow">
+                        <AudioLines size={14} /> TRY A SMALL EXPERIMENT
+                      </span>
+                      <p>
+                        {pathname === "/chords"
+                          ? "Choose major, then minor on the same root. Only one note moves. How much does the feeling change?"
+                          : pathname === "/scales"
+                            ? "Compare a major scale with natural minor. Look for the notes that move, then listen to each selection."
+                            : "Save chords with the heart in Chord library, then bring them here. Start with just two and listen to the movement."}
+                      </p>
+                      <Link
+                        to={
+                          pathname === "/progressions"
+                            ? "/chords"
+                            : "/pitch-pipe?view=waveform"
+                        }
+                        className="studio-text-link"
+                      >
+                        {pathname === "/progressions"
+                          ? "Find some chords"
+                          : "See the sound"}
+                        <ArrowUpRight size={14} />
+                      </Link>
+                    </aside>
+                  </div>
+                )}
               </div>
             )}
           </>

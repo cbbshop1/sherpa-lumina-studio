@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { BookOpen, Play, Heart } from "lucide-react";
+import { BookOpen, Play, Square, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ROOT_SPELLINGS, chordsForRoot } from "../lib/musicNotation";
 import { formatNote } from "../lib/noteSelection";
@@ -22,6 +22,7 @@ interface ChordLibraryProps {
   onChordSelect: (notes: string[], chordName: string) => void;
   selectedChordNotes: string[];
   onPlayChord: (notes: string[], name?: string) => void;
+  playingChordName?: string;
   onAddFavorite: (name: string, notes: string[]) => void;
   isFavorite: (name: string) => boolean;
 }
@@ -31,6 +32,7 @@ const ChordLibrary = ({
   onChordSelect,
   selectedChordNotes,
   onPlayChord,
+  playingChordName,
   onAddFavorite,
   isFavorite,
 }: ChordLibraryProps) => {
@@ -115,6 +117,7 @@ const ChordLibrary = ({
               const isSelected = isChordSelected(chord.notes);
               const chordName = `${selectedKey}${chord.suffix}`;
               const isFav = isFavorite(chordName);
+              const isPlaying = isSelected && playingChordName === chordName;
               return (
                 <div key={chord.name} className="relative group">
                   <Button
@@ -136,20 +139,26 @@ const ChordLibrary = ({
                       {chord.spellings.map(formatNote).join(" · ")}
                     </span>
                   </Button>
-                  <div className="chord-card-actions absolute -top-2 -right-2 flex gap-1 transition-opacity">
+                  <div
+                    className={`chord-card-actions absolute -top-2 -right-2 flex gap-1 transition-opacity ${isPlaying ? "is-playing" : ""}`}
+                  >
                     <Button
                       size="icon"
                       variant="secondary"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onChordSelect(chord.notes, chordName);
                         onPlayChord(chord.notes, chordName);
                       }}
                       className="w-8 h-8 rounded-full shadow-lg"
-                      title="Play chord"
-                      aria-label={`Play ${formatNote(chordName)} ${chord.name}`}
+                      title={isPlaying ? "Stop chord" : "Play chord"}
+                      aria-pressed={isPlaying}
+                      aria-label={`${isPlaying ? "Stop" : "Play"} ${formatNote(chordName)} ${chord.name}`}
                     >
-                      <Play className="w-3 h-3" />
+                      {isPlaying ? (
+                        <Square className="w-3 h-3" fill="currentColor" />
+                      ) : (
+                        <Play className="w-3 h-3" />
+                      )}
                     </Button>
                     <Button
                       size="icon"

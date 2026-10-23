@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { AudioEngine, type SoundSettings } from "../src/lib/studioAudio.ts";
 import { voiceNotes, midiToFrequency } from "../src/lib/noteSelection.ts";
+import { scalePlaybackPlan } from "../src/lib/playbackPlan.ts";
 
 class Parameter {
   value = 0;
@@ -242,4 +243,42 @@ test("Stop cancels a piano chord while browser audio is still resuming", async (
   finish();
   assert.equal(await pending, false);
   assert.equal(context.oscillators.length, 0);
+});
+
+test("scale playback schedules separate notes, with only a light overlap and a finite ending", async () => {
+  const { context, engine } = setup();
+  const plan = scalePlaybackPlan(["C", "D", "E", "F", "G", "A", "B"], 4, {
+    bpm: 120,
+    direction: "up",
+  });
+  await engine.play(
+    plan.steps.map((step) => midiToFrequency(step.midi)),
+    sound,
+    false,
+    undefined,
+    plan.timing,
+  );
+  assert.equal(context.oscillators.length, 8);
+  context.oscillators.forEach((voice, index) => {
+    assert.equal(voice.startAt, 10 + index * 0.5);
+    assert.ok(voice.stopAt! > voice.startAt! + 0.5);
+    assert.ok(voice.stopAt! < voice.startAt! + 1);
+  });
+  assert.equal(context.oscillators[7].frequency.value, midiToFrequency(72));
+});
+test("Stop cancels every future scale note before it can sound", async () => {
+  const { context, engine } = setup();
+  const plan = scalePlaybackPlan(["C", "D", "E"], 4, {
+    bpm: 120,
+    direction: "up",
+  });
+  await engine.play(
+    plan.steps.map((step) => midiToFrequency(step.midi)),
+    sound,
+    false,
+    undefined,
+    plan.timing,
+  );
+  engine.stop();
+  assert.ok(context.oscillators.slice(1).every((voice) => voice.stopAt === 10));
 });

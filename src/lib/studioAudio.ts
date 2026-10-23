@@ -2,6 +2,7 @@ import {
   createInstrumentNote,
   type InstrumentType,
 } from "../utils/instrumentSynthesis.ts";
+import type { SequenceTiming } from "./playbackPlan.ts";
 
 export type SoundSettings = {
   waveform: OscillatorType;
@@ -39,6 +40,7 @@ export class AudioEngine {
     settings: SoundSettings,
     strum = false,
     instrument?: InstrumentType,
+    sequence?: SequenceTiming,
   ) {
     const generation = ++this.generation;
     if (!this.context) {
@@ -62,7 +64,9 @@ export class AudioEngine {
     );
     const context = this.context;
     frequencies.forEach((frequency, i) => {
-      const startAt = context.currentTime + (strum ? i * 0.065 : 0);
+      const startAt =
+        context.currentTime +
+        (sequence ? i * sequence.stepSeconds : strum ? i * 0.065 : 0);
       if (instrument) {
         const note = createInstrumentNote(
           context,
@@ -91,7 +95,17 @@ export class AudioEngine {
             }
           };
           oscillator.start(startAt);
+          if (sequence)
+            oscillator.stop(
+              startAt + sequence.gateSeconds + sequence.releaseSeconds,
+            );
         });
+        if (sequence)
+          note.gainNode.gain.setTargetAtTime(
+            0,
+            startAt + sequence.gateSeconds,
+            sequence.releaseSeconds / 5,
+          );
         return;
       }
       const oscillator = context.createOscillator();
@@ -104,9 +118,16 @@ export class AudioEngine {
       filter.frequency.value = settings.cutoff;
       gain.gain.setValueAtTime(0, startAt);
       gain.gain.linearRampToValueAtTime(
-        0.7 / Math.max(1, frequencies.length),
-        startAt + settings.attack,
+        sequence ? 0.55 : 0.7 / Math.max(1, frequencies.length),
+        startAt +
+          (sequence ? Math.min(settings.attack, 0.035) : settings.attack),
       );
+      if (sequence)
+        gain.gain.setTargetAtTime(
+          0,
+          startAt + sequence.gateSeconds,
+          sequence.releaseSeconds / 5,
+        );
       oscillator.connect(filter);
       filter.connect(gain);
       gain.connect(this.master!);
@@ -119,6 +140,10 @@ export class AudioEngine {
         this.voices.delete(voice);
       };
       oscillator.start(startAt);
+      if (sequence)
+        oscillator.stop(
+          startAt + sequence.gateSeconds + sequence.releaseSeconds,
+        );
     });
     return true;
   }

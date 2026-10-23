@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Link } from "react-router-dom";
+import { ArrowUpRight } from "lucide-react";
 import {
   ROOT_SPELLINGS,
   SCALE_FORMULAS,
@@ -8,11 +8,13 @@ import {
   spellIntervals,
 } from "../lib/musicNotation";
 import { NOTE_NAMES, formatNote } from "../lib/noteSelection";
+import { useStudioSession } from "../context/StudioSession";
+import type { ScalePlayback } from "../lib/playbackPlan";
 
 const scales = SCALE_FORMULAS;
-const allNotes = ROOT_SPELLINGS;
+const majorIntervals = [0, 2, 4, 5, 7, 9, 11];
 
-const ScaleExplorer = ({
+export default function ScaleExplorer({
   initialRoot = "C",
   initialScale,
   onScaleSelect,
@@ -20,116 +22,155 @@ const ScaleExplorer = ({
   initialRoot?: string;
   initialScale?: string;
   onScaleSelect?: (notes: string[], name: string) => void;
-}) => {
+}) {
   const [selectedScale, setSelectedScale] = useState<keyof typeof scales>(
     () =>
       (Object.keys(scales).find(
-        (name) => name.toLowerCase() === initialScale,
+        (name) => name.toLowerCase() === initialScale?.toLowerCase(),
       ) as keyof typeof scales) || "Major",
   );
   const [rootNote, setRootNote] = useState(
-    allNotes.includes(initialRoot) ? initialRoot : "C",
+    ROOT_SPELLINGS.includes(initialRoot) ? initialRoot : "C",
   );
-
+  const { scalePlayback, setScalePlayback, scaleStep, playing, selection } =
+    useStudioSession();
   useEffect(() => {
-    const rootIndex = pitchClass(rootNote);
+    const root = pitchClass(rootNote);
     onScaleSelect?.(
       scales[selectedScale].intervals.map(
-        (interval) => NOTE_NAMES[(rootIndex + interval) % 12],
+        (interval) => NOTE_NAMES[(root + interval) % 12],
       ),
       `${rootNote} ${selectedScale.toLowerCase()}`,
     );
   }, [rootNote, selectedScale, onScaleSelect]);
-
   const formula = scales[selectedScale];
-  const scaleNotes = spellIntervals(
+  const spellings = spellIntervals(
     rootNote,
     formula.intervals,
     formula.degrees,
   ).map(formatNote);
-
+  const labels = [...spellings, spellings[0]];
+  const degrees = formula.degrees.map((degree, index) => {
+    const difference = formula.intervals[index] - majorIntervals[degree - 1];
+    return (
+      (difference < 0 ? "♭".repeat(-difference) : "♯".repeat(difference)) +
+      degree
+    );
+  });
   return (
-    <section className="py-20 px-6 bg-slate-darker">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            Scale <span className="gradient-text">Explorer</span>
-          </h2>
-          <p className="text-lg text-muted-foreground">
-            Discover different scales and their unique patterns
-          </p>
+    <section className="scale-explorer" aria-label="Scale explorer">
+      <div className="scale-choices">
+        <div className="scale-root-choice">
+          <label htmlFor="scale-root" className="studio-eyebrow">
+            START ON
+          </label>
+          <select
+            id="scale-root"
+            value={rootNote}
+            onChange={(event) => setRootNote(event.target.value)}
+          >
+            {ROOT_SPELLINGS.map((note) => (
+              <option key={note} value={note}>
+                {formatNote(note)}
+              </option>
+            ))}
+          </select>
+          <p>Choose a root, then listen for the pattern.</p>
         </div>
-
-        <div className="glass-effect p-8 rounded-3xl">
-          <div className="grid md:grid-cols-2 gap-8 mb-8">
-            <div>
-              <label className="block text-sm font-semibold mb-3">
-                Root Note
-              </label>
-              <div className="grid grid-cols-6 gap-2">
-                {allNotes.map((note) => (
-                  <Button
-                    key={formatNote(note)}
-                    onClick={() => setRootNote(note)}
-                    variant={rootNote === note ? "default" : "outline"}
-                    className={cn(
-                      "font-semibold transition-all",
-                      rootNote === note && "glow-blue",
-                    )}
-                  >
-                    {formatNote(note)}
-                  </Button>
-                ))}
-              </div>
+        <div className="scale-type-choice" role="group" aria-label="Scale type">
+          {Object.keys(scales).map((name) => (
+            <button
+              key={name}
+              aria-pressed={selectedScale === name}
+              onClick={() => setSelectedScale(name as keyof typeof scales)}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="scale-listening">
+        <label>
+          Direction
+          <select
+            aria-label="Scale direction"
+            value={scalePlayback.direction}
+            onChange={(event) =>
+              setScalePlayback({
+                direction: event.target.value as ScalePlayback["direction"],
+              })
+            }
+          >
+            <option value="up">Ascending</option>
+            <option value="down">Descending</option>
+            <option value="up-down">Up and back</option>
+          </select>
+        </label>
+        <label className="scale-pace">
+          Pace <span>{scalePlayback.bpm} notes / min</span>
+          <input
+            type="range"
+            aria-label="Scale pace"
+            min="60"
+            max="180"
+            step="6"
+            value={scalePlayback.bpm}
+            onChange={(event) =>
+              setScalePlayback({ bpm: Number(event.target.value) })
+            }
+          />
+        </label>
+        <p>
+          One note at a time.
+          <br />A little sustain between steps.
+        </p>
+      </div>
+      <div className="scale-score">
+        <div className="scale-score-heading">
+          <h2>
+            {formatNote(rootNote)} {selectedScale}
+          </h2>
+          <span className="studio-eyebrow">LISTEN FOR THE STEPS</span>
+        </div>
+        <div
+          className="scale-note-row"
+          style={{ "--note-count": labels.length } as React.CSSProperties}
+          aria-label="Scale notes"
+        >
+          {labels.map((note, index) => (
+            <div
+              key={index}
+              className="scale-note"
+              data-current={
+                playing && selection.kind === "scale" && scaleStep === index
+              }
+              aria-current={
+                playing && selection.kind === "scale" && scaleStep === index
+                  ? "step"
+                  : undefined
+              }
+            >
+              <small>
+                {index === labels.length - 1 ? "1 · OCTAVE" : degrees[index]}
+              </small>
+              <strong>{note}</strong>
+              <span>
+                {index === 0
+                  ? "ROOT"
+                  : index === labels.length - 1
+                    ? "HOME AGAIN"
+                    : ""}
+              </span>
             </div>
-
-            <div>
-              <label className="block text-sm font-semibold mb-3">
-                Scale Type
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {Object.keys(scales).map((scale) => (
-                  <Button
-                    key={scale}
-                    onClick={() =>
-                      setSelectedScale(scale as keyof typeof scales)
-                    }
-                    variant={selectedScale === scale ? "default" : "outline"}
-                    className={cn(
-                      "font-semibold transition-all",
-                      selectedScale === scale && "glow-purple",
-                    )}
-                  >
-                    {scale}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="p-6 rounded-2xl bg-card border border-border">
-            <h3 className="text-lg font-semibold mb-4 text-center">
-              {formatNote(rootNote)} {selectedScale} Scale
-            </h3>
-            <div className="flex flex-wrap justify-center gap-3">
-              {scaleNotes.map((note, index) => (
-                <div
-                  key={index}
-                  className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center font-bold text-xl shadow-lg glow-blue animate-slide-up"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  {formatNote(note)}
-                </div>
-              ))}
-            </div>
-            <p className="text-center mt-6 text-sm text-muted-foreground">
-              Notes: {scaleNotes.join(" - ")}
-            </p>
-          </div>
+          ))}
+        </div>
+        <div className="scale-score-footer">
+          <p>Press Play scale below. Follow each note as it sounds.</p>
+          <Link to="/piano" className="studio-text-link">
+            See it on the piano <ArrowUpRight size={14} />
+          </Link>
         </div>
       </div>
     </section>
   );
-};
-
-export default ScaleExplorer;
+}

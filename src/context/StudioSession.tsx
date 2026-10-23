@@ -13,6 +13,11 @@ import { useChordProgressions } from "../hooks/useChordProgressions";
 import { useLocation } from "react-router-dom";
 
 import type { InstrumentType } from "../utils/instrumentSynthesis";
+import {
+  scalePlaybackPlan,
+  sameSelection,
+  type ScalePlayback,
+} from "../lib/playbackPlan";
 
 export type Selection = {
   name: string;
@@ -40,6 +45,11 @@ function useSessionState() {
   const [octave, setOctave] = useState(4);
   const [strum, setStrum] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [scalePlayback, setScalePlaybackState] = useState<ScalePlayback>({
+    bpm: 120,
+    direction: "up",
+  });
+  const [scaleStep, setScaleStep] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const engine = useRef<AudioEngine | null>(null);
@@ -50,11 +60,26 @@ function useSessionState() {
     strum,
     instrument,
     pathname,
+    scalePlayback,
   });
-  latest.current = { selection, sound, octave, strum, instrument, pathname };
+  latest.current = {
+    selection,
+    sound,
+    octave,
+    strum,
+    instrument,
+    pathname,
+    scalePlayback,
+  };
   const request = useRef(0);
   const active = useRef(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const sequenceTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const clearSequence = useCallback(() => {
+    sequenceTimers.current.forEach(clearTimeout);
+    sequenceTimers.current = [];
+    setScaleStep(null);
+  }, []);
   const library = useChordProgressions();
   const clearTimers = useCallback(() => {
     timers.current.forEach(clearTimeout);
@@ -64,44 +89,74 @@ function useSessionState() {
     ++request.current;
     active.current = false;
     clearTimers();
+    clearSequence();
     engine.current?.stop(latest.current.sound.release);
     setPlaying(false);
-  }, [clearTimers]);
-  const play = useCallback(async (override?: Selection) => {
-    const value = latest.current;
-    const target = override || value.selection;
-    if (!target.notes.length) return;
-    const token = ++request.current;
-    active.current = true;
-    setError("");
-    try {
-      if (!engine.current) engine.current = new AudioEngine();
-      const frequencies = target.frequency
-        ? [target.frequency]
-        : (target.midiNotes ?? voiceNotes(target.notes, value.octave)).map(
-            midiToFrequency,
-          );
-      const started = await engine.current.play(
-        frequencies,
-        value.sound,
-        value.strum,
-        value.pathname.replace(/\/+$/, "") === "/piano"
-          ? value.instrument
-          : undefined,
-      );
-      if (token !== request.current || !started) return;
-      setAnalyser(engine.current.getAnalyser());
-      setPlaying(true);
-    } catch {
-      if (token === request.current) {
-        active.current = false;
-        setPlaying(false);
-        setError(
-          "Audio could not start. Try Play again in a browser with Web Audio support.",
+  }, [clearTimers, clearSequence]);
+  const play = useCallback(
+    async (override?: Selection) => {
+      const value = latest.current;
+      const target = override || value.selection;
+      if (!target.notes.length) return;
+      const token = ++request.current;
+      clearSequence();
+      active.current = true;
+      setError("");
+      try {
+        if (!engine.current) engine.current = new AudioEngine();
+        const sequence =
+          target.kind === "scale"
+            ? scalePlaybackPlan(target.notes, value.octave, value.scalePlayback)
+            : null;
+        const frequencies = sequence
+          ? sequence.steps.map((step) => midiToFrequency(step.midi))
+          : target.frequency
+            ? [target.frequency]
+            : (target.midiNotes ?? voiceNotes(target.notes, value.octave)).map(
+                midiToFrequency,
+              );
+        const started = await engine.current.play(
+          frequencies,
+          value.sound,
+          value.strum,
+          value.pathname.replace(/\/+$/, "") === "/piano"
+            ? value.instrument
+            : undefined,
+          sequence?.timing,
         );
+        if (token !== request.current || !started) return;
+        setAnalyser(engine.current.getAnalyser());
+        setPlaying(true);
+        if (sequence) {
+          setScaleStep(sequence.steps[0]?.index ?? null);
+          sequence.steps.slice(1).forEach((step) => {
+            sequenceTimers.current.push(
+              setTimeout(() => {
+                if (token === request.current) setScaleStep(step.index);
+              }, step.at * 1000),
+            );
+          });
+          sequenceTimers.current.push(
+            setTimeout(() => {
+              if (token !== request.current) return;
+              active.current = false;
+              setPlaying(false);
+              clearSequence();
+            }, sequence.duration * 1000),
+          );
+        }
+      } catch {
+        if (token === request.current) {
+          active.current = false;
+          setPlaying(false);
+          setError(
+            "Audio could not start. Try Play again in a browser with Web Audio support.",
+          );
+        }
       }
-    }
-  }, []);
+    },
+    [clearSequence],
+  );
   const select = useCallback(
     (next: Selection) => {
       setSelection(next);
@@ -119,6 +174,32 @@ function useSessionState() {
       latest.current.instrument = next;
       setInstrumentState(next);
       if (active.current) void play();
+    },
+    [play],
+  );
+  const togglePlay = useCallback(
+    (next?: Selection) => {
+      const target = next ?? latest.current.selection;
+      if (active.current && sameSelection(target, latest.current.selection)) {
+        stop();
+        return;
+      }
+      if (next) {
+        stop();
+        setSelection(next);
+        latest.current.selection = next;
+      }
+      void play(target);
+    },
+    [play, stop],
+  );
+  const setScalePlayback = useCallback(
+    (patch: Partial<ScalePlayback>) => {
+      const next = { ...latest.current.scalePlayback, ...patch };
+      latest.current.scalePlayback = next;
+      setScalePlaybackState(next);
+      if (active.current && latest.current.selection.kind === "scale")
+        void play();
     },
     [play],
   );
@@ -168,9 +249,10 @@ function useSessionState() {
       window.removeEventListener("keydown", onKey);
       document.removeEventListener("visibilitychange", onHide);
       clearTimers();
+      clearSequence();
       engine.current?.dispose();
     };
-  }, [stop, clearTimers]);
+  }, [stop, clearTimers, clearSequence]);
   return {
     selection,
     select,
@@ -184,6 +266,10 @@ function useSessionState() {
     setStrum,
     playing,
     play,
+    togglePlay,
+    scalePlayback,
+    setScalePlayback,
+    scaleStep,
     stop,
     playProgression,
     analyser,

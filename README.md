@@ -219,3 +219,9 @@ npm run build:clearing
 Copy the contents of `dist-clearing` into the existing Clearing Site's `dist/lumina/` directory. The build includes physical entry pages for each tool so direct links and refreshes work. React Router uses the build's base path. The header links back to The Clearing's Learn room. The Clearing's Learn and Play collections both link to Lumina. The Sites source retains a copy of this app under `exhibits/lumina/`; keep that copy and its built assets together when updating.
 
 Automated tests cover contextual spelling, exact piano registers, instrument playback and cancellation, shared volume, and saved-library compatibility. External MIDI hardware and subjective audio quality require a listening/hardware check.
+
+## Version 0.2.2: chord toggles and scale listening
+
+Chord cards toggle their own playback. A sounding card shows a Stop icon, while the bottom player stays synchronized. Switching cards replaces the sounding chord; Stop retains the selected chord.
+
+Scales play as individual, scheduled notes with a light release overlap and a closing tonic. Choose ascending, descending, or up and back, and adjust the pace from 60 to 180 notes per minute. A highlight follows each note and playback ends automatically. Stop, navigation, and selection changes cancel all future notes. The scale's notes appear once, with contextual spelling and degree labels, instead of repeated panels and lists.
