@@ -12,7 +12,6 @@ import {
   Radio,
   SlidersHorizontal,
   Sparkles,
-  Waves,
 } from "lucide-react";
 import AppNavigation from "../components/AppNavigation";
 import PianoKeyboard from "../components/PianoKeyboard";
@@ -140,10 +139,13 @@ const Index = () => {
                   Six connected tools. Plenty of room to explore.
                 </p>
               </div>
-              <div className="hero-orbit" aria-hidden="true">
-                <div />
-                <div />
-                <Waves size={52} strokeWidth={1} />
+              <div className="lumina-hero-signature" aria-hidden="true">
+                <img
+                  src={`${import.meta.env.BASE_URL}brand/lumina-coral-mark-v1.png`}
+                  alt=""
+                  width="160"
+                  height="160"
+                />
                 <span>
                   GOOD THINGS START
                   <br />

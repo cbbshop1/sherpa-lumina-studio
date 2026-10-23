@@ -1,4 +1,4 @@
-import { Grid2X2, SlidersHorizontal, Sparkles, Waves } from "lucide-react";
+import { Grid2X2, SlidersHorizontal, Sparkles } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 import GlobalMidiControls from "./GlobalMidiControls";
 const AppNavigation = () => (
@@ -6,11 +6,15 @@ const AppNavigation = () => (
     <header className="lumina-header">
       <div className="lumina-header-inner">
         <Link to="/" className="lumina-brand" aria-label="Lumina home">
-          <span className="lumina-brand-mark">
-            <Waves size={25} />
-          </span>
+          <img
+            className="lumina-brand-mark"
+            src={`${import.meta.env.BASE_URL}brand/lumina-coral-mark-v1.png`}
+            alt=""
+            width="56"
+            height="56"
+          />
           <span>
-            lumina<small>A LITTLE MUSIC STUDIO</small>
+            Lumina<small>MUSIC STUDIO</small>
           </span>
         </Link>
         <nav className="lumina-main-nav" aria-label="Main navigation">

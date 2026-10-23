@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "Lumina Display";
+  src: url("/fonts/Poppins-Bold.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -2510,5 +2518,98 @@ input[type="range"] {
   }
   .studio-page .mt-6 {
     margin-top: 12px;
+  }
+}
+
+/* A warm gradient mark and rounded display lettering from the Lumina reference. */
+.lumina-brand .lumina-brand-mark {
+  display: block;
+  width: 56px;
+  height: 56px;
+  border: 0;
+  border-radius: 0;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px #8f23332b);
+}
+.lumina-brand > span:last-child {
+  font-family: "Lumina Display", "Segoe UI", sans-serif;
+  font-weight: 700;
+  font-size: 30px;
+  letter-spacing: -1.25px;
+  line-height: 1.05;
+}
+.lumina-brand small {
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-weight: 400;
+  font-size: 8px;
+  letter-spacing: 3.1px;
+  margin-top: 7px;
+  color: #b5c0b7;
+}
+.lumina-app h1,
+.studio-page h1 {
+  font-family: "Lumina Display", "Segoe UI", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+}
+.dashboard-hero h1 em {
+  font-style: normal;
+  font-weight: 700;
+}
+.lumina-hero-signature {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  width: 220px;
+  margin-right: 25px;
+}
+.lumina-hero-signature img {
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 7px 18px #a7463430);
+}
+.lumina-hero-signature span {
+  font:
+    8px/1.7 "Courier New",
+    monospace;
+  letter-spacing: 1.2px;
+  text-align: center;
+  color: #9ead9e;
+}
+@media (max-width: 760px) {
+  .lumina-brand {
+    gap: 7px;
+  }
+  .lumina-brand .lumina-brand-mark {
+    width: 48px;
+    height: 48px;
+  }
+  .lumina-brand > span:last-child {
+    font-size: 27px;
+  }
+  .lumina-brand small {
+    font-size: 7px;
+    letter-spacing: 2.7px;
+  }
+  .lumina-hero-signature {
+    width: 140px;
+    margin-right: 0;
+  }
+  .lumina-hero-signature img {
+    width: 130px;
+    height: 130px;
+  }
+}
+@media (max-width: 600px) {
+  .lumina-hero-signature {
+    display: none;
+  }
+  .dashboard-hero h1 {
+    font-size: clamp(43px, 10vw, 58px);
+  }
+  .workspace-title h1 {
+    font-size: clamp(28px, 7.5vw, 36px);
   }
 }

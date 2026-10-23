@@ -238,3 +238,10 @@ Studio opens on Keys. Each pitched track has a labeled, scrollable piano roll an
 Validation includes automated Web Audio and routing tests, scale formulas and classical return paths, staff placement and accidentals, grid snapping, type checking and production builds. Browser checks cover note editing, staff selection, undo, transport, navigation and responsive layouts. Physical MIDI hardware, sustain-pedal feel and subjective audio quality still need a hands-on check.
 
 Theory references: [Open Music Theory: Minor Scales](https://viva.pressbooks.pub/openmusictheory/chapter/minor-scales/), [Diatonic Modes](https://viva.pressbooks.pub/openmusictheory/chapter/diatonic-modes/).
+
+
+## Version 0.3.1: Lumina identity
+
+The supplied L/equalizer logo is used in the header, dashboard signature, browser icon and sharing metadata. Its blue is replaced by ruby and coral, retaining the champagne-to-amber gradient and a transparent background. The live wordmark and page titles use locally hosted Poppins Bold as a close visual match to the supplied lettering. The font's SIL Open Font License is retained in `public/fonts/OFL-Poppins.txt`.
+
+Brand asset: `public/brand/lumina-coral-mark-v1.png`. Edited using the built-in image generation tool from the supplied reference. Prompt: isolate the original L/equalizer monogram on a transparent background; preserve its silhouette, rounded edges, dimensional shading and amber regions; replace blue/cyan with a deep ruby-to-coral gradient blending into champagne and gold; no text, tile or mockup. Font source: https://github.com/google/fonts/tree/main/ofl/poppins.
