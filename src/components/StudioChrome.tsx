@@ -9,8 +9,17 @@ export function SessionBar() {
   const { pathname } = useLocation();
   const piano = pathname.replace(/\/+$/, "") === "/piano";
   const scales = pathname.replace(/\/+$/, "") === "/scales";
-  const { selection, playing, togglePlay, sound, updateSound, error, library } =
-    useStudioSession();
+  const {
+    selection,
+    playing,
+    togglePlay,
+    sound,
+    updateSound,
+    error,
+    library,
+    scaleDescending,
+    scalePlayback,
+  } = useStudioSession();
   return (
     <>
       <div className="session-bar">
@@ -28,7 +37,14 @@ export function SessionBar() {
               <strong>
                 {formatNote(selection.name) || "Choose something to hear"}
                 {!scales && (
-                  <small>{selectionNoteLabels(selection).join(" · ")}</small>
+                  <small>
+                    {selectionNoteLabels({
+                      ...selection,
+                      descending:
+                        scalePlayback.direction === "down" ||
+                        (playing && scaleDescending),
+                    }).join(" · ")}
+                  </small>
                 )}
               </strong>
             </div>

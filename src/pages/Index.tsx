@@ -93,7 +93,8 @@ const Index = () => {
   const { selection, select, library } = session;
   useStopOnNavigation();
   const chooseScale = useCallback(
-    (notes: string[], name: string) => select({ notes, name, kind: "scale" }),
+    (notes: string[], name: string, descendingNotes?: string[]) =>
+      select({ notes, name, kind: "scale", descendingNotes }),
     [select],
   );
   const active = tools.find((t) => t.path === pathname);

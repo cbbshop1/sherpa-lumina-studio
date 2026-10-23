@@ -1,218 +1,341 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import { useStudioStore } from '@/store/studioStore';
-import type { Transport } from '@/engine/Transport';
-import type { NoteEvent } from '@/engine/tracks/Track';
+import { useEffect, useRef, useState } from "react";
+import { useStudioStore } from "@/store/studioStore";
+import { useStudioSession } from "@/context/StudioSession";
+import { selectionNoteLabels } from "@/lib/musicNotation";
+import { writtenPitch, rollCell, durationName } from "@/lib/staffNotation";
+import { NOTE_NAMES } from "@/lib/noteSelection";
+import type { Transport } from "@/engine/Transport";
+import StaffPreview from "./StaffPreview";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const MIDI_MIN    = 36;   // C2
-const MIDI_MAX    = 84;   // C6
-const PITCH_RANGE = MIDI_MAX - MIDI_MIN + 1;   // 49 semitones
-const SNAP_BEATS  = 0.25; // 16th-note snap
-const DEFAULT_NOTE_DURATION = 0.25;
-
-const BLACK_KEYS = new Set([1, 3, 6, 8, 10]); // semitone offsets from C
-const isBlackKey = (midi: number) => BLACK_KEYS.has(midi % 12);
-
-// ─── Colours (match Tailwind CSS vars used in the app) ────────────────────────
-const COLOUR = {
-  bgWhite:    '#1e2746',
-  bgBlack:    '#161d38',
-  gridBeat:   '#2e3a5c',
-  gridBar:    '#3d4e70',
-  note:       '#6366f1',
-  noteBorder: '#818cf8',
-  noteOn:     '#a5b4fc',
-  playhead:   '#f43f5e',
-} as const;
-
-// ─── Drawing helpers ──────────────────────────────────────────────────────────
-
-function drawCanvas(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  notes: NoteEvent[],
-  patternLengthBeats: number,
-) {
-  ctx.clearRect(0, 0, w, h);
-  const rowH  = h / PITCH_RANGE;
-  const beatW = w / patternLengthBeats;
-
-  // ── Pitch rows ──────────────────────────────────────────────────────────
-  for (let i = 0; i < PITCH_RANGE; i++) {
-    const midi = MIDI_MAX - i;
-    ctx.fillStyle = isBlackKey(midi) ? COLOUR.bgBlack : COLOUR.bgWhite;
-    ctx.fillRect(0, i * rowH, w, rowH);
-  }
-
-  // ── Beat grid lines ──────────────────────────────────────────────────────
-  for (let beat = 0; beat <= patternLengthBeats; beat++) {
-    ctx.strokeStyle = beat % 4 === 0 ? COLOUR.gridBar : COLOUR.gridBeat;
-    ctx.lineWidth   = beat % 4 === 0 ? 1.5 : 0.5;
-    const x = beat * beatW;
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, h);
-    ctx.stroke();
-  }
-
-  // ── Notes ────────────────────────────────────────────────────────────────
-  for (const note of notes) {
-    if (note.midiNote < MIDI_MIN || note.midiNote > MIDI_MAX) continue;
-    const x  = note.startBeat * beatW;
-    const y  = (MIDI_MAX - note.midiNote) * rowH;
-    const nw = Math.max(4, note.durationBeats * beatW - 2);
-    const nh = rowH - 1;
-
-    ctx.fillStyle   = COLOUR.note;
-    ctx.fillRect(x + 1, y + 0.5, nw, nh);
-
-    ctx.strokeStyle = COLOUR.noteBorder;
-    ctx.lineWidth   = 0.5;
-    ctx.strokeRect(x + 1, y + 0.5, nw, nh);
-  }
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
-
-interface PianoRollProps {
-  trackId:   number;
+const DURATIONS = [0.25, 0.5, 1, 2, 4];
+export default function PianoRoll({
+  trackId,
+  transport,
+  onPreviewNote,
+}: {
+  trackId: number;
   transport: Transport;
-}
-
-const PianoRoll = ({ trackId, transport }: PianoRollProps) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef    = useRef<HTMLCanvasElement>(null);
-  const playheadRef  = useRef<HTMLDivElement>(null);
-  // Keep a stable ref to the latest draw function so ResizeObserver always
-  // uses current notes/patternLength without needing to re-subscribe.
-  const drawRef = useRef<() => void>(() => {});
-
-  const notes             = useStudioStore(s => s.patterns[trackId] ?? []);
-  const patternLengthBars = useStudioStore(s => s.patternLengthBars);
-  const addNote           = useStudioStore(s => s.addNote);
-  const removeNote        = useStudioStore(s => s.removeNote);
-
-  const patternLengthBeats = patternLengthBars * 4;
-
-  // ── Canvas draw function ────────────────────────────────────────────────
-
-  const redraw = useCallback(() => {
-    const canvas    = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const w = container.clientWidth;
-    const h = container.clientHeight;
-    const dpr = window.devicePixelRatio || 1;
-    if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
-      canvas.width  = w * dpr;
-      canvas.height = h * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-    drawCanvas(ctx, w, h, notes, patternLengthBeats);
-  }, [notes, patternLengthBeats]);
-
-  // Keep drawRef in sync so ResizeObserver always calls the latest redraw
-  useLayoutEffect(() => { drawRef.current = redraw; }, [redraw]);
-
-  // Redraw when notes or pattern length changes
-  useEffect(() => { redraw(); }, [redraw]);
-
-  // ResizeObserver — resize canvas and redraw
+  onPreviewNote: (trackId: number, midi: number) => void;
+}) {
+  const notes = useStudioStore((s) => s.patterns[trackId] ?? []);
+  const beats = useStudioStore((s) => s.patternLengthBars * 4);
+  const { addNote, removeNote, updateNote, undo, redo } = useStudioStore();
+  const { selection } = useStudioSession();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pitch, setPitch] = useState(60);
+  const [length, setLength] = useState(0.25);
+  const [start, setStart] = useState(0);
+  const [spelling, setSpelling] = useState("context");
+  const [audition, setAudition] = useState(true);
+  const [hover, setHover] = useState<{
+    midiNote: number;
+    startBeat: number;
+  } | null>(null);
+  const scroll = useRef<HTMLDivElement>(null);
+  const playhead = useRef<HTMLDivElement>(null);
+  const preferred =
+    spelling === "context" ? selectionNoteLabels(selection) : [];
+  const flats = spelling === "flats";
+  const name = (midi: number) => writtenPitch(midi, preferred, flats).name;
+  const writtenOctave = writtenPitch(pitch, preferred, flats).octave;
+  const selected = notes.find((note) => note.id === selectedId);
+  const select = (id: string) => {
+    const note = notes.find((note) => note.id === id);
+    if (!note) return;
+    setSelectedId(id);
+    setPitch(note.midiNote);
+    setStart(note.startBeat);
+    setLength(note.durationBeats);
+  };
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const ro = new ResizeObserver(() => drawRef.current());
-    ro.observe(container);
-    return () => ro.disconnect();
-  }, []);
-
-  // ── Playhead subscription ───────────────────────────────────────────────
-
+    setSelectedId(null);
+    if (scroll.current) scroll.current.scrollTop = 240;
+  }, [trackId]);
   useEffect(() => {
-    const unsub = transport.subscribe(({ currentBeat, playState: ps }) => {
-      const ph = playheadRef.current;
-      if (!ph) return;
-      if (ps === 'stopped') { ph.style.display = 'none'; return; }
-      if (currentBeat !== undefined) {
-        const patBeat  = ((currentBeat % patternLengthBeats) + patternLengthBeats) % patternLengthBeats;
-        ph.style.display = 'block';
-        ph.style.left    = `${(patBeat / patternLengthBeats) * 100}%`;
-      }
-    });
-    return unsub;
-  }, [transport, patternLengthBeats]);
-
-  // ── Click handler — add / remove notes ─────────────────────────────────
-
-  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const container = containerRef.current;
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const w = rect.width;
-    const h = rect.height;
-
-    const rowH = h / PITCH_RANGE;
-    const beatW = w / patternLengthBeats;
-
-    const rawMidi  = MIDI_MAX - Math.floor(y / rowH);
-    const midiNote = Math.max(MIDI_MIN, Math.min(MIDI_MAX, rawMidi));
-    const rawBeat  = x / beatW;
-    const startBeat = Math.floor(rawBeat / SNAP_BEATS) * SNAP_BEATS;
-
-    // Check for existing note at this cell to toggle it off
+    if (!selected) return;
+    setPitch(selected.midiNote);
+    setStart(selected.startBeat);
+    setLength(selected.durationBeats);
+  }, [selected]);
+  useEffect(
+    () =>
+      transport.subscribe(({ currentBeat, playState }) => {
+        if (!playhead.current) return;
+        if (playState === "stopped") playhead.current.style.display = "none";
+        else if (currentBeat !== undefined) {
+          playhead.current.style.display = "block";
+          playhead.current.style.left = `${((((currentBeat % beats) + beats) % beats) / beats) * 100}%`;
+        }
+      }),
+    [transport, beats],
+  );
+  const change = (next: {
+    midiNote?: number;
+    startBeat?: number;
+    durationBeats?: number;
+  }) => {
+    if (next.midiNote !== undefined) setPitch(next.midiNote);
+    if (next.startBeat !== undefined) setStart(next.startBeat);
+    if (next.durationBeats !== undefined) setLength(next.durationBeats);
+    if (selected) updateNote(trackId, selected.id, next);
+  };
+  const place = (midiNote: number, startBeat: number) => {
     const existing = notes.find(
-      n =>
+      (n) =>
         n.midiNote === midiNote &&
         startBeat >= n.startBeat &&
         startBeat < n.startBeat + n.durationBeats,
     );
-
     if (existing) {
-      removeNote(trackId, existing.id);
-    } else {
-      const newNote: NoteEvent = {
-        id:            `p-${trackId}-${midiNote}-${startBeat.toFixed(3)}-${Date.now()}`,
-        midiNote,
-        velocity:      100,
-        startBeat,
-        durationBeats: DEFAULT_NOTE_DURATION,
-      };
-      addNote(trackId, newNote);
+      select(existing.id);
+      return;
     }
-  }, [notes, trackId, patternLengthBeats, addNote, removeNote]);
-
+    const id = crypto.randomUUID();
+    addNote(trackId, {
+      id,
+      midiNote,
+      startBeat,
+      durationBeats: Math.min(length, beats - startBeat),
+      velocity: 100,
+    });
+    setSelectedId(id);
+    setPitch(midiNote);
+    setStart(startBeat);
+    if (audition) onPreviewNote(trackId, midiNote);
+  };
+  const cell = (event: React.MouseEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return rollCell(
+      event.clientX - rect.left,
+      event.clientY - rect.top,
+      rect.width,
+      beats,
+    );
+  };
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full h-full cursor-crosshair overflow-hidden"
-      onClick={handleClick}
-    >
-      <canvas
-        ref={canvasRef}
-        style={{ display: 'block', width: '100%', height: '100%' }}
+    <div className="note-composer">
+      <div className="composer-intro">
+        <div>
+          <h2>Write a melody</h2>
+          <p>
+            Place a note in the grid. Select it here or on the staff to change
+            it.
+          </p>
+        </div>
+        <label>
+          Spelling{" "}
+          <select
+            aria-label="Note spelling"
+            value={spelling}
+            onChange={(e) => setSpelling(e.target.value)}
+          >
+            <option value="context">Follow lesson</option>
+            <option value="sharps">Sharps</option>
+            <option value="flats">Flats</option>
+          </select>
+        </label>
+      </div>
+      <StaffPreview
+        notes={notes.filter((n) => n.startBeat < beats)}
+        beats={beats}
+        preferred={preferred}
+        flats={flats}
+        selectedId={selectedId}
+        onSelect={select}
       />
-      {/* Playhead overlay — updated via direct DOM manipulation, no re-render */}
-      <div
-        ref={playheadRef}
-        style={{
-          display:   'none',
-          position:  'absolute',
-          top:       0,
-          bottom:    0,
-          width:     '2px',
-          background: COLOUR.playhead,
-          pointerEvents: 'none',
-          transform: 'translateX(-1px)',
-        }}
-      />
+      <div className="note-inspector" aria-label="Note editor">
+        <strong>
+          {selected ? "Selected" : "New note"}
+          <span>{name(pitch)}</span>
+        </strong>
+        <label>
+          Pitch{" "}
+          <select
+            aria-label="Note pitch"
+            value={pitch % 12}
+            onChange={(e) =>
+              change({
+                midiNote:
+                  60 +
+                  Number(e.target.value) +
+                  12 *
+                    (writtenOctave -
+                      writtenPitch(
+                        60 + Number(e.target.value),
+                        preferred,
+                        flats,
+                      ).octave),
+              })
+            }
+          >
+            {NOTE_NAMES.map((_, pc) => (
+              <option key={pc} value={pc}>
+                {writtenPitch(60 + pc, preferred, flats).spelling}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Octave{" "}
+          <select
+            aria-label="Note octave"
+            value={writtenOctave}
+            onChange={(e) =>
+              change({
+                midiNote: pitch + 12 * (Number(e.target.value) - writtenOctave),
+              })
+            }
+          >
+            {[...new Set([2, 3, 4, 5, 6, writtenOctave])].sort().map((o) => (
+              <option key={o}>{o}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Length{" "}
+          <select
+            aria-label="Note length"
+            value={length}
+            onChange={(e) => change({ durationBeats: Number(e.target.value) })}
+          >
+            {!DURATIONS.includes(length) && (
+              <option value={length}>{length} beats</option>
+            )}
+            {DURATIONS.map((d) => (
+              <option key={d} value={d}>
+                {durationName(d)} note
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Beat{" "}
+          <input
+            aria-label="Note start beat"
+            type="number"
+            min={1}
+            max={beats + 0.75}
+            step={0.25}
+            value={start + 1}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (Number.isFinite(n))
+                change({
+                  startBeat: Math.max(0, Math.min(beats - 0.25, n - 1)),
+                });
+            }}
+          />
+        </label>
+        <button onClick={() => onPreviewNote(trackId, pitch)}>Hear note</button>
+        {selected ? (
+          <>
+            <button
+              onClick={() => {
+                removeNote(trackId, selected.id);
+                setSelectedId(null);
+              }}
+            >
+              Delete note
+            </button>
+            <button onClick={() => setSelectedId(null)}>New note</button>
+          </>
+        ) : (
+          <button onClick={() => place(pitch, start)}>Add note</button>
+        )}
+      </div>
+      <div className="roll-tools">
+        <label>
+          <input
+            type="checkbox"
+            checked={audition}
+            onChange={(e) => setAudition(e.target.checked)}
+          />{" "}
+          Hear as I place
+        </label>
+        <span aria-live="polite">
+          {hover
+            ? `${name(hover.midiNote)} · beat ${hover.startBeat + 1}`
+            : "C2–C6 · sixteenth-note grid"}
+        </span>
+        <button onClick={undo}>Undo</button>
+        <button onClick={redo}>Redo</button>
+      </div>
+      <div className="piano-roll-scroll" ref={scroll} aria-label="Piano roll">
+        <div
+          className="piano-roll-content"
+          style={{ minWidth: Math.max(720, beats * 120 + 62) }}
+        >
+          <div className="roll-ruler">
+            <span>Pitch</span>
+            <div>
+              {Array.from({ length: beats }, (_, i) => (
+                <span key={i} style={{ left: `${(i / beats) * 100}%` }}>
+                  {Math.floor(i / 4) + 1}.{(i % 4) + 1}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="roll-body">
+            <div className="roll-key-labels">
+              {Array.from({ length: 49 }, (_, i) => 84 - i).map((midi) => (
+                <button
+                  key={midi}
+                  className={
+                    [1, 3, 6, 8, 10].includes(midi % 12) ? "black" : ""
+                  }
+                  aria-label={`Hear ${name(midi)}`}
+                  onClick={() => {
+                    setPitch(midi);
+                    if (selected)
+                      updateNote(trackId, selected.id, { midiNote: midi });
+                    onPreviewNote(trackId, midi);
+                  }}
+                >
+                  {name(midi)}
+                </button>
+              ))}
+            </div>
+            <div
+              className="roll-grid"
+              style={{
+                backgroundSize: `${100 / (beats * 4)}% 20px, ${100 / beats}% 100%`,
+              }}
+              onMouseMove={(e) => setHover(cell(e))}
+              onMouseLeave={() => setHover(null)}
+              onClick={(e) => {
+                const target = cell(e);
+                place(target.midiNote, target.startBeat);
+              }}
+            >
+              {notes
+                .filter(
+                  (n) =>
+                    n.midiNote >= 36 && n.midiNote <= 84 && n.startBeat < beats,
+                )
+                .map((note) => (
+                  <button
+                    key={note.id}
+                    className={`roll-note ${selectedId === note.id ? "selected" : ""}`}
+                    aria-label={`Select ${name(note.midiNote)}, beat ${note.startBeat + 1}, ${durationName(note.durationBeats)} note`}
+                    title={`${name(note.midiNote)} · beat ${note.startBeat + 1} · ${note.durationBeats} beats`}
+                    style={{
+                      left: `${(note.startBeat / beats) * 100}%`,
+                      top: (84 - note.midiNote) * 20 + 1,
+                      width: `${(Math.min(note.durationBeats, beats - note.startBeat) / beats) * 100}%`,
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      select(note.id);
+                    }}
+                  >
+                    {name(note.midiNote)}
+                  </button>
+                ))}
+              <div className="roll-playhead" ref={playhead} />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
-};
-
-export default PianoRoll;
+}

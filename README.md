@@ -225,3 +225,16 @@ Automated tests cover contextual spelling, exact piano registers, instrument pla
 Chord cards toggle their own playback. A sounding card shows a Stop icon, while the bottom player stays synchronized. Switching cards replaces the sounding chord; Stop retains the selected chord.
 
 Scales play as individual, scheduled notes with a light release overlap and a closing tonic. Choose ascending, descending, or up and back, and adjust the pace from 60 to 180 notes per minute. A highlight follows each note and playback ends automatically. Stop, navigation, and selection changes cancel all future notes. The scale's notes appear once, with contextual spelling and degree labels, instead of repeated panels and lists.
+
+
+## Version 0.3.0: MIDI everywhere, minor scales, and visible composition
+
+A single MIDI connection lives above the routes. On the dashboard and exploration pages it plays the selected global MIDI instrument, independently of lesson previews. In Studio it routes to the armed track for playing and recording. Velocity, sustain and pitch bend are retained; device changes, navigation, mute, All notes off and Escape release held voices and cancel pending starts. Browsers may require Enable MIDI sound after loading the page. MIDI Settings offers reconnection, device selection and mute on every tool, including Piano. The screen piano retains its glissando.
+
+Scale choices include harmonic minor, classical melodic minor, and all seven diatonic modes (Ionian/major, Dorian, Phrygian, Lydian, Mixolydian, Aeolian/natural minor, Locrian), alongside pentatonic and blues scales. Classical melodic minor raises 6 and 7 ascending and uses natural minor descending. In Up and back, the displayed spellings change with the sounding leg. The upper tonic sounds once at the turn.
+
+Studio opens on Keys. Each pitched track has a labeled, scrollable piano roll and a synchronized treble/bass pitch preview. Select a note in either view to edit pitch, written octave, start beat or duration. Add note and Hear note offer an alternative to grid placement. Contextual spelling follows the selected lesson; explicit sharps/flats are also available. Undo/Redo covers additions, edits and deletions. The staff is a pitch preview, not full score engraving: rests, ties across barlines, beaming and arbitrary MIDI durations are not engraved as a finished score. Patterns remain in memory during this session and can be exported as MIDI. Navigation preserves patterns and mixer settings.
+
+Validation includes automated Web Audio and routing tests, scale formulas and classical return paths, staff placement and accidentals, grid snapping, type checking and production builds. Browser checks cover note editing, staff selection, undo, transport, navigation and responsive layouts. Physical MIDI hardware, sustain-pedal feel and subjective audio quality still need a hands-on check.
+
+Theory references: [Open Music Theory: Minor Scales](https://viva.pressbooks.pub/openmusictheory/chapter/minor-scales/), [Diatonic Modes](https://viva.pressbooks.pub/openmusictheory/chapter/diatonic-modes/).

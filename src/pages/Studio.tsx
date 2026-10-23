@@ -1,6 +1,5 @@
-import { useEffect, useRef, useCallback } from "react";
-import { Radio, Mic2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useRef, useCallback, useState } from "react";
+import { Mic2 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import AppNavigation from "@/components/AppNavigation";
@@ -13,7 +12,8 @@ import { Scheduler } from "@/engine/Scheduler";
 import type { ScheduledEvent } from "@/engine/Scheduler";
 import { TrackManager } from "@/engine/tracks/TrackManager";
 import { AudioExporter } from "@/engine/AudioExporter";
-import { useMidiKeyboard } from "@/hooks/useMidiKeyboard";
+import { useMidiSession } from "@/context/MidiSession";
+import type { InstrumentBackend } from "@/engine/instruments/InstrumentBackend";
 import { useStudioStore, registerEngine } from "@/store/studioStore";
 import { INSTRUMENTS, InstrumentType } from "@/utils/instrumentSynthesis";
 import { exportMidi } from "@/utils/exportMidi";
@@ -32,6 +32,40 @@ const INSTRUMENT_OPTIONS = Object.entries(INSTRUMENTS) as [
 // ─── Studio page ─────────────────────────────────────────────────────────────
 
 const Studio = () => {
+  const { registerTarget, panic } = useMidiSession();
+  const [engineReady, setEngineReady] = useState(false);
+  const owners = useRef(
+    new Map<
+      number,
+      { backend: InstrumentBackend; ticket: object; trackId: number }
+    >(),
+  );
+  const previewTimers = useRef(new Set<ReturnType<typeof setTimeout>>());
+  const generation = useRef(0);
+  const stopLive = useCallback(() => {
+    generation.current++;
+    previewTimers.current.forEach(clearTimeout);
+    previewTimers.current.clear();
+    owners.current.clear();
+    recordingNotesRef.current.clear();
+    trackManagerRef.current?.stopAll();
+  }, []);
+  const previewNote = useCallback(async (trackId: number, note: number) => {
+    const ae = engineRef.current,
+      tm = trackManagerRef.current;
+    if (!ae || !tm) return;
+    const ticket = generation.current;
+    await ae.resume();
+    if (ticket !== generation.current) return;
+    const backend = tm.tracks[trackId]?.backend;
+    if (!backend) return;
+    backend.noteOn(note, 100, ae.currentTime);
+    const timer = setTimeout(() => {
+      backend.noteOff(note, ae.currentTime);
+      previewTimers.current.delete(timer);
+    }, 350);
+    previewTimers.current.add(timer);
+  }, []);
   // Engine refs — created once, stable across re-renders
   const engineRef = useRef<AudioEngine | null>(null);
   const transportRef = useRef<Transport | null>(null);
@@ -42,7 +76,7 @@ const Studio = () => {
 
   // Notes currently held down during recording: midiNote → { startBeat, velocity }
   const recordingNotesRef = useRef<
-    Map<number, { startBeat: number; velocity: number }>
+    Map<number, { startBeat: number; velocity: number; trackId: number }>
   >(new Map());
 
   const {
@@ -79,9 +113,31 @@ const Studio = () => {
     schedulerRef.current = scheduler;
     audioExporterRef.current = new AudioExporter(ae);
 
+    const saved = useStudioStore.getState();
+    transport.setBpm(saved.bpm);
+    ae.setMasterVolume(saved.masterVolume);
+    saved.tracks.forEach((track) => {
+      tm.setInstrument(track.id, track.instrumentType);
+      mixer.update(track.id, {
+        volume: track.volume,
+        pan: track.pan,
+        mute: track.mute,
+        solo: track.solo,
+      });
+      if (track.recordArm) tm.armTrack(track.id);
+    });
     registerEngine({ transport, mixer, trackManager: tm });
+    useStudioStore.setState({ playState: "stopped" });
+    setEngineReady(true);
 
     return () => {
+      stopLive();
+      registerEngine({
+        transport: undefined,
+        mixer: undefined,
+        trackManager: undefined,
+      });
+      useStudioStore.setState({ playState: "stopped" });
       transport.dispose();
       scheduler.dispose();
       tm.tracks.forEach((t) => t.backend.dispose());
@@ -101,6 +157,7 @@ const Studio = () => {
         useStudioStore.setState({ playState: changes.playState });
         if (changes.playState === "stopped") {
           scheduler.reset();
+          panic();
           return;
         }
       }
@@ -145,27 +202,43 @@ const Studio = () => {
 
   // ── 3. MIDI → armed track routing ─────────────────────────────────────────
 
-  const handleNoteOn = useCallback((midiNote: number, velocity: number) => {
-    const ae = engineRef.current;
-    const tm = trackManagerRef.current;
-    const transport = transportRef.current;
-    if (!ae || !tm || !transport) return;
+  const handleNoteOn = useCallback(
+    async (midiNote: number, velocity: number) => {
+      const ae = engineRef.current;
+      const tm = trackManagerRef.current;
+      const transport = transportRef.current;
+      if (!ae || !tm || !transport) return;
 
-    ae.resume();
-    const armed = tm.getArmedTrack();
-    if (!armed) return;
-    armed.backend.noteOn(midiNote, velocity, ae.currentTime);
+      const armed = tm.getArmedTrack();
+      if (!armed) return;
+      const ticket = {};
+      owners.current.set(midiNote, {
+        backend: armed.backend,
+        ticket,
+        trackId: armed.id,
+      });
+      await ae.resume();
+      if (owners.current.get(midiNote)?.ticket !== ticket) return;
+      armed.backend.noteOn(midiNote, velocity, ae.currentTime);
 
-    // Capture start beat when recording is active
-    if (transport.playState === "recording") {
-      const elapsed = ae.currentTime - transport.startAudioTime;
-      const rawBeat = transport.startBeat + elapsed / transport.secondsPerBeat;
-      const patternBeats = useStudioStore.getState().patternLengthBars * 4;
-      const patBeat = ((rawBeat % patternBeats) + patternBeats) % patternBeats;
-      const startBeat = Math.round(patBeat / SNAP_BEATS) * SNAP_BEATS;
-      recordingNotesRef.current.set(midiNote, { startBeat, velocity });
-    }
-  }, []);
+      // Capture start beat when recording is active
+      if (transport.playState === "recording") {
+        const elapsed = ae.currentTime - transport.startAudioTime;
+        const rawBeat =
+          transport.startBeat + elapsed / transport.secondsPerBeat;
+        const patternBeats = useStudioStore.getState().patternLengthBars * 4;
+        const patBeat =
+          ((rawBeat % patternBeats) + patternBeats) % patternBeats;
+        const startBeat = Math.round(patBeat / SNAP_BEATS) * SNAP_BEATS;
+        recordingNotesRef.current.set(midiNote, {
+          startBeat,
+          velocity,
+          trackId: armed.id,
+        });
+      }
+    },
+    [],
+  );
 
   const handleNoteOff = useCallback((midiNote: number) => {
     const ae = engineRef.current;
@@ -173,13 +246,13 @@ const Studio = () => {
     const transport = transportRef.current;
     if (!ae || !tm || !transport) return;
 
-    const armed = tm.getArmedTrack();
-    armed?.backend.noteOff(midiNote, ae.currentTime);
+    owners.current.get(midiNote)?.backend.noteOff(midiNote, ae.currentTime);
+    owners.current.delete(midiNote);
 
     // Complete the recorded note
     const pending = recordingNotesRef.current.get(midiNote);
-    if (!pending || transport.playState !== "recording") return;
     recordingNotesRef.current.delete(midiNote);
+    if (!pending || transport.playState !== "recording") return;
 
     const elapsed = ae.currentTime - transport.startAudioTime;
     const rawBeat = transport.startBeat + elapsed / transport.secondsPerBeat;
@@ -198,7 +271,7 @@ const Studio = () => {
       ),
     );
 
-    const armedTrackId = state.tracks.find((t) => t.recordArm)?.id;
+    const armedTrackId = pending.trackId;
     if (armedTrackId === undefined) return;
 
     state.addNote(armedTrackId, {
@@ -214,7 +287,12 @@ const Studio = () => {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return;
+      if (
+        e.target instanceof HTMLElement &&
+        (e.target.isContentEditable ||
+          e.target.closest("input,select,textarea"))
+      )
+        return;
       if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
         useStudioStore.getState().undo();
@@ -231,46 +309,40 @@ const Studio = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // ── 5. Pitch bend + CC → armed track ─────────────────────────────────────
+  useEffect(
+    () =>
+      registerTarget({
+        noteOn: handleNoteOn,
+        noteOff: handleNoteOff,
+        parameter: (name, value) => {
+          trackManagerRef.current?.tracks.forEach((track) =>
+            track.backend.setParameter(name, value),
+          );
+        },
+        stop: stopLive,
+      }),
+    [registerTarget, handleNoteOn, handleNoteOff, stopLive],
+  );
 
-  const handlePitchBend = useCallback((semitones: number) => {
-    const armed = trackManagerRef.current?.getArmedTrack();
-    armed?.backend.setParameter("pitchBend", semitones);
-  }, []);
-
-  const handleCC = useCallback((cc: number, value: number) => {
-    const armed = trackManagerRef.current?.getArmedTrack();
-    if (!armed) return;
-    if (cc === 64) armed.backend.setParameter("sustain", value);
-  }, []);
-
-  const {
-    isSupported: midiSupported,
-    selectedDevice,
-    devices,
-    error: midiError,
-    selectDevice,
-  } = useMidiKeyboard({
-    onNotePress: handleNoteOn,
-    onNoteRelease: handleNoteOff,
-    onPitchBend: handlePitchBend,
-    onCC: handleCC,
-    enabled: true,
-  });
-
-  // ── Guard: engine is initialised synchronously; this is just a type guard ──
-  if (!transportRef.current) return null;
+  if (!engineReady || !transportRef.current)
+    return (
+      <div className="studio-page">
+        <AppNavigation />
+        <p>Opening studio…</p>
+      </div>
+    );
 
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="studio-page bg-background">
       <AppNavigation />
 
-      <div className="flex flex-col h-[calc(100vh-77px)]">
+      <div className="flex flex-1 min-h-0 flex-col">
         {/* Transport bar */}
         <TransportBar
           transport={transportRef.current}
+          onResumeAudio={() => engineRef.current!.resume()}
           onExportMidi={() => {
             const { patterns, tracks, bpm } = useStudioStore.getState();
             exportMidi(
@@ -287,7 +359,10 @@ const Studio = () => {
         {/* Main workspace */}
         <div className="flex-1 overflow-y-auto">
           {/* ── Sequencer ───────────────────────────────────────────────── */}
-          <SequencerView transport={transportRef.current} />
+          <SequencerView
+            transport={transportRef.current}
+            onPreviewNote={previewNote}
+          />
 
           {/* ── Track strips ────────────────────────────────────────────── */}
           <div className="mx-6 mt-4 mb-6 rounded-2xl border border-border overflow-hidden">
@@ -295,7 +370,7 @@ const Studio = () => {
               <div
                 key={track.id}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-3",
+                  "flex flex-wrap items-center gap-3 px-4 py-3",
                   idx !== 0 && "border-t border-border",
                   track.recordArm && "bg-destructive/5",
                 )}
@@ -304,6 +379,8 @@ const Studio = () => {
                 <button
                   onClick={() => setTrackArm(track.id)}
                   title="Record arm"
+                  aria-label={`Arm ${track.name} for MIDI recording`}
+                  aria-pressed={track.recordArm}
                   className={cn(
                     "w-7 h-7 rounded-full flex items-center justify-center border-2 transition-colors shrink-0",
                     track.recordArm
@@ -321,6 +398,7 @@ const Studio = () => {
 
                 {/* Instrument selector */}
                 <select
+                  aria-label={`${track.name} instrument`}
                   value={track.instrumentType}
                   onChange={(e) =>
                     setTrackInstrument(
@@ -406,42 +484,6 @@ const Studio = () => {
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Footer — MIDI status */}
-        <div className="px-6 py-2 border-t border-border flex items-center gap-3 bg-card">
-          <Badge
-            variant={selectedDevice ? "default" : "secondary"}
-            className="gap-1.5 text-xs"
-          >
-            <Radio
-              className={cn("w-3 h-3", selectedDevice && "animate-pulse")}
-            />
-            {selectedDevice ? `MIDI: ${selectedDevice.name}` : "No MIDI device"}
-          </Badge>
-
-          {!midiSupported && (
-            <span className="text-xs text-muted-foreground">
-              Web MIDI not supported — use Chrome or Edge
-            </span>
-          )}
-          {midiError && (
-            <span className="text-xs text-destructive">{midiError}</span>
-          )}
-          {devices.length > 1 && (
-            <select
-              value={selectedDevice?.id ?? ""}
-              onChange={(e) => selectDevice(e.target.value)}
-              className="ml-auto bg-muted border border-border rounded px-2 py-1 text-xs
-                         focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              {devices.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          )}
         </div>
       </div>
     </div>

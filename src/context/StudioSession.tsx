@@ -25,6 +25,7 @@ export type Selection = {
   kind: "chord" | "note" | "scale";
   frequency?: number;
   midiNotes?: number[];
+  descendingNotes?: string[];
 };
 const INITIAL_SOUND: SoundSettings = {
   waveform: "sine",
@@ -50,6 +51,8 @@ function useSessionState() {
     direction: "up",
   });
   const [scaleStep, setScaleStep] = useState<number | null>(null);
+  const [scaleMidi, setScaleMidi] = useState<number | null>(null);
+  const [scaleDescending, setScaleDescending] = useState(false);
   const [error, setError] = useState("");
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const engine = useRef<AudioEngine | null>(null);
@@ -79,6 +82,8 @@ function useSessionState() {
     sequenceTimers.current.forEach(clearTimeout);
     sequenceTimers.current = [];
     setScaleStep(null);
+    setScaleMidi(null);
+    setScaleDescending(false);
   }, []);
   const library = useChordProgressions();
   const clearTimers = useCallback(() => {
@@ -106,7 +111,12 @@ function useSessionState() {
         if (!engine.current) engine.current = new AudioEngine();
         const sequence =
           target.kind === "scale"
-            ? scalePlaybackPlan(target.notes, value.octave, value.scalePlayback)
+            ? scalePlaybackPlan(
+                target.notes,
+                value.octave,
+                value.scalePlayback,
+                target.descendingNotes,
+              )
             : null;
         const frequencies = sequence
           ? sequence.steps.map((step) => midiToFrequency(step.midi))
@@ -129,10 +139,16 @@ function useSessionState() {
         setPlaying(true);
         if (sequence) {
           setScaleStep(sequence.steps[0]?.index ?? null);
+          setScaleMidi(sequence.steps[0]?.midi ?? null);
+          setScaleDescending(sequence.steps[0]?.descending ?? false);
           sequence.steps.slice(1).forEach((step) => {
             sequenceTimers.current.push(
               setTimeout(() => {
-                if (token === request.current) setScaleStep(step.index);
+                if (token === request.current) {
+                  setScaleStep(step.index);
+                  setScaleMidi(step.midi);
+                  setScaleDescending(step.descending);
+                }
               }, step.at * 1000),
             );
           });
@@ -270,6 +286,8 @@ function useSessionState() {
     scalePlayback,
     setScalePlayback,
     scaleStep,
+    scaleMidi,
+    scaleDescending,
     stop,
     playProgression,
     analyser,

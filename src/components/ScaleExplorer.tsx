@@ -6,6 +6,7 @@ import {
   SCALE_FORMULAS,
   pitchClass,
   spellIntervals,
+  type ScaleFormula,
 } from "../lib/musicNotation";
 import { NOTE_NAMES, formatNote } from "../lib/noteSelection";
 import { useStudioSession } from "../context/StudioSession";
@@ -21,7 +22,11 @@ export default function ScaleExplorer({
 }: {
   initialRoot?: string;
   initialScale?: string;
-  onScaleSelect?: (notes: string[], name: string) => void;
+  onScaleSelect?: (
+    notes: string[],
+    name: string,
+    descendingNotes?: string[],
+  ) => void;
 }) {
   const [selectedScale, setSelectedScale] = useState<keyof typeof scales>(
     () =>
@@ -32,26 +37,40 @@ export default function ScaleExplorer({
   const [rootNote, setRootNote] = useState(
     ROOT_SPELLINGS.includes(initialRoot) ? initialRoot : "C",
   );
-  const { scalePlayback, setScalePlayback, scaleStep, playing, selection } =
-    useStudioSession();
+  const {
+    scalePlayback,
+    setScalePlayback,
+    scaleStep,
+    scaleDescending,
+    playing,
+    selection,
+  } = useStudioSession();
   useEffect(() => {
     const root = pitchClass(rootNote);
+    const current: ScaleFormula = scales[selectedScale];
     onScaleSelect?.(
       scales[selectedScale].intervals.map(
         (interval) => NOTE_NAMES[(root + interval) % 12],
       ),
       `${rootNote} ${selectedScale.toLowerCase()}`,
+      current.descendingIntervals?.map(
+        (interval) => NOTE_NAMES[(root + interval) % 12],
+      ),
     );
   }, [rootNote, selectedScale, onScaleSelect]);
-  const formula = scales[selectedScale];
-  const spellings = spellIntervals(
-    rootNote,
-    formula.intervals,
-    formula.degrees,
-  ).map(formatNote);
+  const formula: ScaleFormula = scales[selectedScale];
+  const descending =
+    !!formula.descendingIntervals &&
+    (scalePlayback.direction === "down" || (playing && scaleDescending));
+  const intervals = descending
+    ? formula.descendingIntervals!
+    : formula.intervals;
+  const spellings = spellIntervals(rootNote, intervals, formula.degrees).map(
+    formatNote,
+  );
   const labels = [...spellings, spellings[0]];
   const degrees = formula.degrees.map((degree, index) => {
-    const difference = formula.intervals[index] - majorIntervals[degree - 1];
+    const difference = intervals[index] - majorIntervals[degree - 1];
     return (
       (difference < 0 ? "♭".repeat(-difference) : "♯".repeat(difference)) +
       degree
@@ -77,17 +96,40 @@ export default function ScaleExplorer({
           </select>
           <p>Choose a root, then listen for the pattern.</p>
         </div>
-        <div className="scale-type-choice" role="group" aria-label="Scale type">
-          {Object.keys(scales).map((name) => (
-            <button
-              key={name}
-              aria-pressed={selectedScale === name}
-              onClick={() => setSelectedScale(name as keyof typeof scales)}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
+        <label className="scale-family-choice">
+          Scale or mode
+          <select
+            aria-label="Scale type"
+            value={selectedScale}
+            onChange={(event) =>
+              setSelectedScale(event.target.value as keyof typeof scales)
+            }
+          >
+            <optgroup label="Major & minor">
+              <option value="Major">Major (Ionian)</option>
+              <option value="Natural Minor">Natural Minor (Aeolian)</option>
+              <option>Harmonic Minor</option>
+              <option>Melodic Minor</option>
+            </optgroup>
+            <optgroup label="More modes">
+              {["Dorian", "Phrygian", "Lydian", "Mixolydian", "Locrian"].map(
+                (name) => (
+                  <option key={name}>{name}</option>
+                ),
+              )}
+            </optgroup>
+            <optgroup label="Pentatonic & blues">
+              {["Pentatonic Major", "Pentatonic Minor", "Blues"].map((name) => (
+                <option key={name}>{name}</option>
+              ))}
+            </optgroup>
+          </select>
+          <p>
+            {selectedScale === "Melodic Minor"
+              ? "Classical form: raised sixth and seventh going up; natural minor coming down."
+              : "Choose a sound, then follow the pattern."}
+          </p>
+        </label>
       </div>
       <div className="scale-listening">
         <label>
@@ -130,7 +172,13 @@ export default function ScaleExplorer({
           <h2>
             {formatNote(rootNote)} {selectedScale}
           </h2>
-          <span className="studio-eyebrow">LISTEN FOR THE STEPS</span>
+          <span className="studio-eyebrow">
+            {selectedScale === "Melodic Minor"
+              ? descending
+                ? "DESCENDING FORM"
+                : "ASCENDING FORM"
+              : "LISTEN FOR THE STEPS"}
+          </span>
         </div>
         <div
           className="scale-note-row"

@@ -1,9 +1,9 @@
-import type { Track, TrackType } from './Track';
-import { SynthBackend } from '../instruments/SynthBackend';
-import { SamplerBackend } from '../instruments/SamplerBackend';
-import type { AudioEngine } from '../AudioEngine';
-import type { Mixer } from '../Mixer';
-import type { InstrumentType } from '@/utils/instrumentSynthesis';
+import type { Track, TrackType } from "./Track";
+import { SynthBackend } from "../instruments/SynthBackend";
+import { SamplerBackend } from "../instruments/SamplerBackend";
+import type { AudioEngine } from "../AudioEngine";
+import type { Mixer } from "../Mixer";
+import type { InstrumentType } from "@/utils/instrumentSynthesis";
 
 interface TrackDef {
   name: string;
@@ -12,11 +12,11 @@ interface TrackDef {
 }
 
 export const DEFAULT_TRACKS: TrackDef[] = [
-  { name: 'Drums',  type: 'drum',    instrument: 'bell'    },
-  { name: 'Bass',   type: 'melodic', instrument: 'strings' },
-  { name: 'Keys',   type: 'melodic', instrument: 'epiano'  },
-  { name: 'Pad',    type: 'melodic', instrument: 'strings' },
-  { name: 'Lead',   type: 'melodic', instrument: 'synth'   },
+  { name: "Drums", type: "drum", instrument: "bell" },
+  { name: "Bass", type: "melodic", instrument: "strings" },
+  { name: "Keys", type: "melodic", instrument: "epiano" },
+  { name: "Pad", type: "melodic", instrument: "strings" },
+  { name: "Lead", type: "melodic", instrument: "synth" },
 ];
 
 export class TrackManager {
@@ -26,9 +26,10 @@ export class TrackManager {
     this.tracks = DEFAULT_TRACKS.map((def, i) => {
       // Track 0 (Drums) uses SamplerBackend for one-shot percussive sounds.
       // All other tracks use SynthBackend.
-      const backend = i === 0
-        ? new SamplerBackend(engine.audioContext)
-        : new SynthBackend(engine.audioContext, def.instrument);
+      const backend =
+        i === 0
+          ? new SamplerBackend(engine.audioContext)
+          : new SynthBackend(engine.audioContext, def.instrument);
       backend.connect(mixer.getInputNode(i));
 
       return {
@@ -48,15 +49,22 @@ export class TrackManager {
   }
 
   getArmedTrack(): Track | null {
-    return this.tracks.find(t => t.recordArm) ?? null;
+    return this.tracks.find((t) => t.recordArm) ?? null;
   }
 
   /** Arms exactly one track; disarms all others. */
   armTrack(trackId: number): void {
-    this.tracks.forEach(t => { t.recordArm = t.id === trackId; });
+    this.tracks.forEach((t) => {
+      t.recordArm = t.id === trackId;
+    });
   }
 
-  noteOn(trackId: number, midiNote: number, velocity: number, audioTime: number): void {
+  noteOn(
+    trackId: number,
+    midiNote: number,
+    velocity: number,
+    audioTime: number,
+  ): void {
     this.tracks[trackId]?.backend.noteOn(midiNote, velocity, audioTime);
   }
 
@@ -81,7 +89,9 @@ export class TrackManager {
   }
 
   stopAll(): void {
-    this.tracks.forEach(t => {
+    this.tracks.forEach((t) => {
+      t.backend.setParameter("sustain", 0);
+      t.backend.setParameter("pitchBend", 0);
       for (let note = 0; note <= 127; note++) {
         t.backend.noteOff(note, 0);
       }

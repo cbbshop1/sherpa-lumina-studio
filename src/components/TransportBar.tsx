@@ -1,32 +1,42 @@
-import { useEffect, useRef, useState } from 'react';
-import { Play, Square, Circle, ChevronUp, ChevronDown, Download, Mic } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { useStudioStore } from '@/store/studioStore';
-import type { Transport } from '@/engine/Transport';
+import { useEffect, useRef, useState } from "react";
+import {
+  Play,
+  Square,
+  Circle,
+  ChevronUp,
+  ChevronDown,
+  Download,
+  Mic,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { useStudioStore } from "@/store/studioStore";
+import type { Transport } from "@/engine/Transport";
 
 interface TransportBarProps {
   /** Pass the live Transport instance so this component can subscribe
    *  to beat updates without going through Zustand (avoids 40 Hz re-renders
    *  of the whole store). */
   transport: Transport;
-  onExportMidi:        () => void;
+  onResumeAudio: () => Promise<void>;
+  onExportMidi: () => void;
   onStartAudioCapture: () => void;
-  onStopAudioCapture:  () => void;
+  onStopAudioCapture: () => void;
   /** Polled on each render to reflect live capture state. */
-  isCapturingAudio:    () => boolean;
+  isCapturingAudio: () => boolean;
 }
 
 export const TransportBar = ({
   transport,
+  onResumeAudio,
   onExportMidi,
   onStartAudioCapture,
   onStopAudioCapture,
   isCapturingAudio,
 }: TransportBarProps) => {
   const { bpm, playState, setBpm, play, stop, record } = useStudioStore();
-  const [displayBeat,   setDisplayBeat]   = useState('1.1');
-  const [audioCapture,  setAudioCapture]  = useState(false);
+  const [displayBeat, setDisplayBeat] = useState("1.1");
+  const [audioCapture, setAudioCapture] = useState(false);
   const bpmInputRef = useRef<HTMLInputElement>(null);
 
   // Subscribe directly to Transport for the beat counter — high-frequency
@@ -34,11 +44,11 @@ export const TransportBar = ({
   useEffect(() => {
     const unsub = transport.subscribe(({ currentBeat, playState: ps }) => {
       if (currentBeat !== undefined) {
-        const bar  = Math.floor(currentBeat / 4) + 1;
+        const bar = Math.floor(currentBeat / 4) + 1;
         const beat = Math.floor(currentBeat % 4) + 1;
         setDisplayBeat(`${bar}.${beat}`);
       }
-      if (ps === 'stopped') setDisplayBeat('1.1');
+      if (ps === "stopped") setDisplayBeat("1.1");
     });
     return unsub;
   }, [transport]);
@@ -63,14 +73,14 @@ export const TransportBar = ({
   };
 
   return (
-    <div className="flex items-center gap-4 px-6 py-3 bg-card border-b border-border">
+    <div className="flex flex-wrap items-center gap-3 px-6 py-3 bg-card border-b border-border">
       {/* Play / Stop / Record */}
       <div className="flex items-center gap-1">
         <Button
           variant="ghost"
           size="icon"
           onClick={stop}
-          disabled={playState === 'stopped'}
+          disabled={playState === "stopped"}
           className="h-9 w-9"
           title="Stop"
         >
@@ -78,10 +88,13 @@ export const TransportBar = ({
         </Button>
 
         <Button
-          variant={playState === 'playing' ? 'default' : 'ghost'}
+          variant={playState === "playing" ? "default" : "ghost"}
           size="icon"
-          onClick={play}
-          disabled={playState === 'playing'}
+          onClick={async () => {
+            await onResumeAudio();
+            play();
+          }}
+          disabled={playState === "playing"}
           className="h-9 w-9"
           title="Play"
         >
@@ -89,11 +102,17 @@ export const TransportBar = ({
         </Button>
 
         <Button
-          variant={playState === 'recording' ? 'destructive' : 'ghost'}
+          variant={playState === "recording" ? "destructive" : "ghost"}
           size="icon"
-          onClick={record}
-          disabled={playState !== 'stopped'}
-          className={cn('h-9 w-9', playState === 'recording' && 'animate-pulse')}
+          onClick={async () => {
+            await onResumeAudio();
+            record();
+          }}
+          disabled={playState !== "stopped"}
+          className={cn(
+            "h-9 w-9",
+            playState === "recording" && "animate-pulse",
+          )}
           title="Record"
         >
           <Circle className="w-4 h-4 fill-current" />
@@ -143,12 +162,13 @@ export const TransportBar = ({
       </div>
 
       {/* Playstate badge */}
-      {playState !== 'stopped' && (
+      {playState !== "stopped" && (
         <span
           className={cn(
-            'text-xs font-semibold px-2 py-1 rounded-full uppercase tracking-wider',
-            playState === 'playing'   && 'bg-primary/20 text-primary',
-            playState === 'recording' && 'bg-destructive/20 text-destructive animate-pulse',
+            "text-xs font-semibold px-2 py-1 rounded-full uppercase tracking-wider",
+            playState === "playing" && "bg-primary/20 text-primary",
+            playState === "recording" &&
+              "bg-destructive/20 text-destructive animate-pulse",
           )}
         >
           {playState}
@@ -171,18 +191,22 @@ export const TransportBar = ({
 
         {/* Audio capture */}
         <Button
-          variant={audioCapture ? 'destructive' : 'ghost'}
+          variant={audioCapture ? "destructive" : "ghost"}
           size="sm"
           onClick={toggleAudioCapture}
           className={cn(
-            'h-7 gap-1.5 text-xs',
-            !audioCapture && 'text-muted-foreground hover:text-foreground',
-            audioCapture  && 'animate-pulse',
+            "h-7 gap-1.5 text-xs",
+            !audioCapture && "text-muted-foreground hover:text-foreground",
+            audioCapture && "animate-pulse",
           )}
-          title={audioCapture ? 'Stop audio capture and download' : 'Start audio capture'}
+          title={
+            audioCapture
+              ? "Stop audio capture and download"
+              : "Start audio capture"
+          }
         >
           <Mic className="w-3 h-3" />
-          {audioCapture ? 'Stop' : 'Audio'}
+          {audioCapture ? "Stop" : "Audio"}
         </Button>
       </div>
     </div>

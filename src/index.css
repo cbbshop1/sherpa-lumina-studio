@@ -2142,3 +2142,373 @@ input[type="range"] {
     font-size: 10px;
   }
 }
+
+/* The keyboard remains connected while moving between workspaces. */
+.global-midi-strip {
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+}
+.global-midi-inner {
+  max-width: 1440px;
+  margin: auto;
+  padding: 8px 24px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 11px;
+}
+.global-midi-inner > button {
+  border: 1px solid hsl(var(--border));
+  border-radius: 7px;
+  padding: 6px 9px;
+  white-space: nowrap;
+}
+.global-midi-inner button:hover {
+  background: hsl(var(--muted));
+}
+.midi-device-status {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.midi-device-status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #83938b;
+  flex-shrink: 0;
+}
+.midi-device-status i.connected {
+  background: #85d6a0;
+  box-shadow: 0 0 8px #85d6a050;
+}
+.midi-held-notes {
+  flex: 1;
+  min-width: 30px;
+  color: hsl(var(--primary));
+  font-variant-numeric: tabular-nums;
+}
+.midi-mute[aria-pressed="true"] {
+  color: hsl(var(--primary));
+}
+.midi-routing {
+  color: hsl(var(--primary));
+}
+.scale-family-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.scale-family-choice label {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+.scale-family-choice select {
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
+  border-radius: 9px;
+  padding: 10px 12px;
+  color: hsl(var(--foreground));
+  width: 100%;
+}
+.studio-page {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.studio-page > header,
+.studio-page > .global-midi-strip {
+  flex-shrink: 0;
+}
+.note-composer {
+  padding: 18px;
+}
+.composer-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.composer-intro h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+.composer-intro p {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  margin-top: 3px;
+}
+.composer-intro label {
+  font-size: 11px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.note-composer select,
+.note-composer input[type="number"] {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: 7px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.note-composer button:focus-visible,
+.staff-event:focus-visible {
+  outline: 2px solid #db9e60;
+  outline-offset: 2px;
+}
+.staff-preview {
+  background: #f1ecdf;
+  color: #263d35;
+  border-radius: 12px;
+  border: 1px solid #e3ddce;
+  overflow: hidden;
+}
+.staff-caption {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 12px 16px 0;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.staff-caption strong {
+  font-size: 12px;
+}
+.staff-caption span {
+  opacity: 0.65;
+}
+.staff-scroll {
+  overflow-x: auto;
+}
+.staff-scroll svg {
+  display: block;
+}
+.staff-clef,
+.staff-accidental {
+  font-family: "Segoe UI Symbol", "Noto Music", serif;
+}
+.staff-event {
+  cursor: pointer;
+  color: #263d35;
+}
+.staff-event.selected {
+  color: #ad5e26;
+}
+.staff-event:hover {
+  color: #c17c3f;
+}
+.note-inspector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  padding: 14px 0;
+}
+.note-inspector > strong {
+  font-size: 10px;
+  color: hsl(var(--muted-foreground));
+  min-width: 70px;
+  align-self: center;
+}
+.note-inspector > strong span {
+  display: block;
+  font-size: 23px;
+  color: hsl(var(--foreground));
+  line-height: 1.2;
+}
+.note-inspector label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 10px;
+  color: hsl(var(--muted-foreground));
+}
+.note-inspector input[type="number"] {
+  width: 68px;
+}
+.note-inspector button,
+.roll-tools button {
+  padding: 7px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 7px;
+  font-size: 11px;
+}
+.note-inspector button:hover,
+.roll-tools button:hover {
+  background: hsl(var(--muted));
+}
+.roll-tools {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 10px;
+  color: hsl(var(--muted-foreground));
+  padding: 0 0 10px;
+}
+.roll-tools label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.roll-tools > span {
+  flex: 1;
+  min-width: 140px;
+}
+.piano-roll-scroll {
+  height: 286px;
+  overflow: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: 9px;
+  position: relative;
+}
+.roll-ruler {
+  height: 25px;
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: #21372f;
+  color: #c4d1c8;
+  display: flex;
+  font-size: 10px;
+}
+.roll-ruler > span {
+  width: 62px;
+  flex-shrink: 0;
+  padding: 5px 9px;
+  position: sticky;
+  left: 0;
+  background: #21372f;
+  z-index: 1;
+}
+.roll-ruler > div {
+  flex: 1;
+  position: relative;
+}
+.roll-ruler > div span {
+  position: absolute;
+  padding: 5px 4px;
+}
+.roll-body {
+  display: flex;
+  height: 980px;
+  position: relative;
+}
+.roll-key-labels {
+  width: 62px;
+  flex-shrink: 0;
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: #d9e0d5;
+}
+.roll-key-labels button {
+  display: block;
+  width: 100%;
+  height: 20px;
+  text-align: right;
+  padding-right: 9px;
+  border-bottom: 1px solid #c0ccbf;
+  font-size: 10px;
+  color: #284337;
+  background: #e7ebdf;
+}
+.roll-key-labels button.black {
+  background: #b7c5b8;
+}
+.roll-key-labels button:hover {
+  background: #e6ba80;
+}
+.roll-grid {
+  position: relative;
+  flex: 1;
+  height: 980px;
+  cursor: crosshair;
+  background-color: #1c3028;
+  background-image:
+    linear-gradient(to right, #bfd0c315 1px, transparent 1px),
+    linear-gradient(to right, #bfd0c330 1px, transparent 1px);
+}
+.roll-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 19px,
+    #bfd0c31c 19px,
+    #bfd0c31c 20px
+  );
+}
+.roll-note {
+  position: absolute;
+  height: 18px;
+  padding: 0 3px;
+  border: 1px solid #90bf9c;
+  border-radius: 3px;
+  background: #7da68a;
+  color: #122b20;
+  font-size: 9px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  min-width: 6px;
+}
+.roll-note.selected {
+  background: #e9bb82;
+  border-color: #f6d5a8;
+  color: #352516;
+  z-index: 1;
+}
+.roll-playhead {
+  display: none;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e5a269;
+  pointer-events: none;
+  z-index: 2;
+}
+@media (max-width: 640px) {
+  .global-midi-inner {
+    padding: 8px 12px;
+    gap: 6px;
+  }
+  .midi-held-notes {
+    display: none;
+  }
+  .global-midi-inner > button {
+    font-size: 10px;
+    padding: 5px 7px;
+  }
+  .midi-device-status {
+    max-width: 135px;
+  }
+  .note-composer {
+    padding: 12px;
+  }
+  .note-inspector {
+    gap: 8px;
+  }
+  .studio-page .mx-6 {
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+  .studio-page .mt-6 {
+    margin-top: 12px;
+  }
+}

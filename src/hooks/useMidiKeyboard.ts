@@ -1,181 +1,155 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-
+import { useCallback, useEffect, useRef, useState } from "react";
+import { decodeMidi } from "../lib/liveMidi";
 export interface MidiDevice {
   id: string;
   name: string;
 }
-
-// Helper to convert MIDI note number to note name and octave
-export const midiNoteToName = (midiNote: number): { note: string; octave: number; display: string } => {
-  const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-  const octave = Math.floor(midiNote / 12) - 1;
-  const noteIndex = midiNote % 12;
-  const note = noteNames[noteIndex];
+export const midiNoteToName = (midi: number) => {
+  const note = [
+    "C",
+    "C#",
+    "D",
+    "D#",
+    "E",
+    "F",
+    "F#",
+    "G",
+    "G#",
+    "A",
+    "A#",
+    "B",
+  ][midi % 12];
+  const octave = Math.floor(midi / 12) - 1;
   return { note, octave, display: `${note}${octave}` };
 };
-
-interface UseMidiKeyboardProps {
-  onNotePress?:   (midiNote: number, velocity: number) => void;
-  onNoteRelease?: (midiNote: number) => void;
-  /** Pitch bend value in semitones, range ±2 (matches N-32 default ±2 semitone range). */
-  onPitchBend?:   (semitones: number) => void;
-  /** Raw MIDI CC message: cc number (0-127) and value (0-127). */
-  onCC?:          (cc: number, value: number) => void;
+interface MidiCallbacks {
+  onNotePress?: (note: number, velocity: number) => void;
+  onNoteRelease?: (note: number) => void;
+  onPitchBend?: (value: number) => void;
+  onCC?: (number: number, value: number) => void;
+  onReset?: () => void;
   enabled?: boolean;
 }
-
-export const useMidiKeyboard = ({
-  onNotePress,
-  onNoteRelease,
-  onPitchBend,
-  onCC,
-  enabled = true
-}: UseMidiKeyboardProps) => {
-  const [midiAccess, setMidiAccess] = useState<MIDIAccess | null>(null);
+function savedDevice(): string | null {
+  try {
+    return localStorage.getItem("midi-selected-device");
+  } catch {
+    return null;
+  }
+}
+export function useMidiKeyboard(callbacks: MidiCallbacks) {
+  const enabled = callbacks.enabled !== false;
+  const [isSupported] = useState(
+    () => typeof navigator !== "undefined" && "requestMIDIAccess" in navigator,
+  );
+  const [midiAccess, setAccess] = useState<MIDIAccess | null>(null);
   const [devices, setDevices] = useState<MidiDevice[]>([]);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
-  const [isSupported, setIsSupported] = useState(false);
+  const [selectedDeviceId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
-  const midiAccessRef = useRef<MIDIAccess | null>(null);
-  const onNotePressRef   = useRef(onNotePress);
-  const onNoteReleaseRef = useRef(onNoteRelease);
-  const onPitchBendRef   = useRef(onPitchBend);
-  const onCCRef          = useRef(onCC);
-
-  // Keep refs updated with latest callbacks
+  const preference = useRef(savedDevice());
+  const accessRef = useRef<MIDIAccess | null>(null);
+  const latest = useRef(callbacks);
+  latest.current = callbacks;
+  const attempted = useRef(false);
+  const pending = useRef(false);
+  const alive = useRef(true);
   useEffect(() => {
-    onNotePressRef.current   = onNotePress;
-    onNoteReleaseRef.current = onNoteRelease;
-    onPitchBendRef.current   = onPitchBend;
-    onCCRef.current          = onCC;
-  });
-
-  // Check browser support
-  useEffect(() => {
-    setIsSupported('requestMIDIAccess' in navigator);
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
   }, []);
-
-  // Request MIDI access
-  const requestMidiAccess = useCallback(async () => {
-    if (!isSupported) {
-      setError('Web MIDI is not supported in this browser. Try Chrome, Edge, or Opera.');
-      return false;
-    }
-
-    try {
-      const access = await navigator.requestMIDIAccess();
-      midiAccessRef.current = access;
-      setMidiAccess(access);
-      setError(null);
-      
-      // Get initial devices
-      updateDeviceList(access);
-      
-      // Listen for device changes
-      access.onstatechange = () => updateDeviceList(access);
-      
-      return true;
-    } catch (err) {
-      setError('MIDI access denied. Please grant permission to use MIDI devices.');
-      return false;
-    }
-  }, [isSupported]);
-
-  // Update device list
-  const updateDeviceList = (access: MIDIAccess) => {
+  const refresh = useCallback((access: MIDIAccess) => {
     const inputs: MidiDevice[] = [];
     access.inputs.forEach((input) => {
-      inputs.push({
-        id: input.id,
-        name: input.name || 'Unknown Device'
-      });
+      if (input.state === "connected")
+        inputs.push({ id: input.id, name: input.name || "MIDI keyboard" });
     });
     setDevices(inputs);
-    
-    // Auto-select if only one device and none selected
-    if (inputs.length === 1 && !selectedDeviceId) {
-      setSelectedDeviceId(inputs[0].id);
+    const preferred = preference.current;
+    setSelectedId(
+      preferred === null
+        ? inputs.length === 1
+          ? inputs[0].id
+          : null
+        : inputs.some((input) => input.id === preferred)
+          ? preferred
+          : null,
+    );
+  }, []);
+  const requestMidiAccess = useCallback(async () => {
+    if (!isSupported || pending.current) return false;
+    attempted.current = true;
+    pending.current = true;
+    try {
+      const access = await navigator.requestMIDIAccess({ sysex: false });
+      if (!alive.current) return false;
+      accessRef.current = access;
+      setAccess(access);
+      refresh(access);
+      setError(null);
+      return true;
+    } catch {
+      if (alive.current)
+        setError("MIDI access was not granted. Use Connect MIDI to try again.");
+      return false;
+    } finally {
+      pending.current = false;
     }
-  };
-
-  // Handle MIDI messages - use refs to always get latest callbacks
-  const handleMidiMessage = useCallback((event: MIDIMessageEvent) => {
-    if (!enabled) return;
-
-    const data    = event.data;
-    const status  = data[0];
-    const command = status & 0xF0;
-
-    // Note On (0x90) with velocity > 0
-    if (command === 0x90 && data[2] > 0) {
-      onNotePressRef.current?.(data[1], data[2]);
-    }
-    // Note Off (0x80) or Note On with velocity 0
-    else if (command === 0x80 || (command === 0x90 && data[2] === 0)) {
-      onNoteReleaseRef.current?.(data[1]);
-    }
-    // Pitch bend (0xE0) — 14-bit value, centre = 8192, range ±2 semitones
-    else if (command === 0xE0) {
-      const raw      = ((data[2] << 7) | data[1]) - 8192;
-      const semitones = (raw / 8192) * 2;
-      onPitchBendRef.current?.(semitones);
-    }
-    // Control change (0xB0)
-    else if (command === 0xB0) {
-      onCCRef.current?.(data[1], data[2]);
-    }
-  }, [enabled]);
-
-  // Connect to selected device
+  }, [isSupported, refresh]);
   useEffect(() => {
-    if (!midiAccess || !selectedDeviceId) return;
-
+    if (enabled && isSupported && !midiAccess && !attempted.current)
+      void requestMidiAccess();
+  }, [enabled, isSupported, midiAccess, requestMidiAccess]);
+  useEffect(() => {
+    if (!midiAccess) return;
+    const update = () => refresh(midiAccess);
+    midiAccess.addEventListener("statechange", update);
+    return () => midiAccess.removeEventListener("statechange", update);
+  }, [midiAccess, refresh]);
+  useEffect(() => {
+    if (!midiAccess || !selectedDeviceId || !enabled) return;
     const input = midiAccess.inputs.get(selectedDeviceId);
-    if (input) {
-      input.onmidimessage = handleMidiMessage;
-      
-      return () => {
-        input.onmidimessage = null;
-      };
-    }
-  }, [midiAccess, selectedDeviceId, handleMidiMessage]);
-
-  // Auto-request MIDI access on mount if supported
-  useEffect(() => {
-    if (isSupported && enabled && !midiAccess) {
-      requestMidiAccess();
-    }
-  }, [isSupported, enabled, midiAccess, requestMidiAccess]);
-
-  const selectDevice = useCallback((deviceId: string | null) => {
-    setSelectedDeviceId(deviceId);
-    
-    // Save to localStorage
-    if (deviceId) {
-      localStorage.setItem('midi-selected-device', deviceId);
-    } else {
-      localStorage.removeItem('midi-selected-device');
-    }
-  }, []);
-
-  // Load saved settings
-  useEffect(() => {
-    const savedDevice = localStorage.getItem('midi-selected-device');
-    
-    if (savedDevice) {
-      setSelectedDeviceId(savedDevice);
-    }
-  }, []);
-
+    if (!input) return;
+    const handle = (event: MIDIMessageEvent) => {
+      if (!event.data) return;
+      const message = decodeMidi(event.data);
+      if (!message) return;
+      if (message.type === "on")
+        latest.current.onNotePress?.(message.note, message.velocity);
+      if (message.type === "off") latest.current.onNoteRelease?.(message.note);
+      if (message.type === "bend") latest.current.onPitchBend?.(message.value);
+      if (message.type === "cc")
+        latest.current.onCC?.(message.number, message.value);
+    };
+    input.addEventListener("midimessage", handle);
+    return () => {
+      input.removeEventListener("midimessage", handle);
+      latest.current.onReset?.();
+    };
+  }, [midiAccess, selectedDeviceId, enabled]);
+  const selectDevice = useCallback(
+    (id: string | null) => {
+      latest.current.onReset?.();
+      preference.current = id ?? "";
+      try {
+        localStorage.setItem("midi-selected-device", id ?? "");
+      } catch {
+        /* Device selection still works without browser storage. */
+      }
+      if (accessRef.current) refresh(accessRef.current);
+    },
+    [refresh],
+  );
   return {
     isSupported,
     midiAccess,
     devices,
     selectedDeviceId,
-    selectedDevice: devices.find(d => d.id === selectedDeviceId) || null,
+    selectedDevice:
+      devices.find((device) => device.id === selectedDeviceId) ?? null,
     error,
-    requestMidiAccess,
     selectDevice,
+    requestMidiAccess,
   };
-};
+}

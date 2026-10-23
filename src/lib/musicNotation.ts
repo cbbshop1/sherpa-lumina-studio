@@ -86,10 +86,24 @@ export const CHORD_FORMULAS = [
   },
 ];
 
+export type ScaleFormula = {
+  intervals: number[];
+  degrees: number[];
+  descendingIntervals?: number[];
+};
 export const SCALE_FORMULAS = {
   Major: { intervals: [0, 2, 4, 5, 7, 9, 11], degrees: [1, 2, 3, 4, 5, 6, 7] },
   "Natural Minor": {
     intervals: [0, 2, 3, 5, 7, 8, 10],
+    degrees: [1, 2, 3, 4, 5, 6, 7],
+  },
+  "Harmonic Minor": {
+    intervals: [0, 2, 3, 5, 7, 8, 11],
+    degrees: [1, 2, 3, 4, 5, 6, 7],
+  },
+  "Melodic Minor": {
+    intervals: [0, 2, 3, 5, 7, 9, 11],
+    descendingIntervals: [0, 2, 3, 5, 7, 8, 10],
     degrees: [1, 2, 3, 4, 5, 6, 7],
   },
   "Pentatonic Major": { intervals: [0, 2, 4, 7, 9], degrees: [1, 2, 3, 5, 6] },
@@ -97,7 +111,20 @@ export const SCALE_FORMULAS = {
   // The blues passing tone is the lowered fifth, not an augmented fourth.
   Blues: { intervals: [0, 3, 5, 6, 7, 10], degrees: [1, 3, 4, 5, 5, 7] },
   Dorian: { intervals: [0, 2, 3, 5, 7, 9, 10], degrees: [1, 2, 3, 4, 5, 6, 7] },
-};
+  Phrygian: {
+    intervals: [0, 1, 3, 5, 7, 8, 10],
+    degrees: [1, 2, 3, 4, 5, 6, 7],
+  },
+  Lydian: { intervals: [0, 2, 4, 6, 7, 9, 11], degrees: [1, 2, 3, 4, 5, 6, 7] },
+  Mixolydian: {
+    intervals: [0, 2, 4, 5, 7, 9, 10],
+    degrees: [1, 2, 3, 4, 5, 6, 7],
+  },
+  Locrian: {
+    intervals: [0, 1, 3, 5, 6, 8, 10],
+    degrees: [1, 2, 3, 4, 5, 6, 7],
+  },
+} satisfies Record<string, ScaleFormula>;
 
 const mod12 = (pitch: number) => ((pitch % 12) + 12) % 12;
 const isPitchSpelling = (note: string) => /^[A-G](?:#|b|♯|♭|𝄪|𝄫)*$/u.test(note);
@@ -203,6 +230,7 @@ export function selectionNoteLabels(selection: {
   name: string;
   notes: readonly string[];
   kind: string;
+  descending?: boolean;
 }): string[] {
   if (selection.kind === "chord")
     return spelledChordNotes(selection.name, selection.notes).map(formatNote);
@@ -212,10 +240,16 @@ export function selectionNoteLabels(selection: {
     const entry = Object.entries(SCALE_FORMULAS).find(
       ([name]) => name.toLowerCase() === scaleName,
     );
-    if (entry)
-      return spellIntervals(root, entry[1].intervals, entry[1].degrees).map(
-        formatNote,
-      );
+    if (entry) {
+      const formula: ScaleFormula = entry[1];
+      return spellIntervals(
+        root,
+        selection.descending && formula.descendingIntervals
+          ? formula.descendingIntervals
+          : formula.intervals,
+        formula.degrees,
+      ).map(formatNote);
+    }
   }
   if (
     selection.kind === "note" &&

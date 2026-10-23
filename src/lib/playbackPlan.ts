@@ -14,6 +14,7 @@ export function scalePlaybackPlan(
   notes: string[],
   octave: number,
   options: ScalePlayback,
+  descendingNotes?: string[],
 ) {
   const stepSeconds =
     60 /
@@ -27,13 +28,31 @@ export function scalePlaybackPlan(
     releaseSeconds: 0.14,
   };
   const pitches = voiceNotes(notes, octave);
-  const up = pitches.map((midi, index) => ({ midi, index }));
-  if (pitches.length) up.push({ midi: pitches[0] + 12, index: pitches.length });
+  const up = pitches.map((midi, index) => ({ midi, index, descending: false }));
+  if (pitches.length)
+    up.push({
+      midi: pitches[0] + 12,
+      index: pitches.length,
+      descending: false,
+    });
+  const downPitches = voiceNotes(descendingNotes ?? notes, octave);
+  const down = downPitches.map((midi, index) => ({
+    midi,
+    index,
+    descending: true,
+  }));
+  if (downPitches.length)
+    down.push({
+      midi: downPitches[0] + 12,
+      index: downPitches.length,
+      descending: true,
+    });
+  down.reverse();
   const ordered =
     options.direction === "down"
-      ? [...up].reverse()
+      ? down
       : options.direction === "up-down"
-        ? [...up, ...up.slice(0, -1).reverse()]
+        ? [...up, ...down.slice(1)]
         : up;
   return {
     timing,

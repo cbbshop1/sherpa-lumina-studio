@@ -8,7 +8,7 @@ import {
 } from "react";
 import { Radio, RotateCcw } from "lucide-react";
 import { useStudioSession } from "../context/StudioSession";
-import { useMidiKeyboard } from "../hooks/useMidiKeyboard";
+import { useMidiSession } from "../context/MidiSession";
 import { NOTE_NAMES, voiceNotes } from "../lib/noteSelection";
 import { selectionNoteLabels } from "../lib/musicNotation";
 import { pianoSelection } from "../lib/pianoSelection";
@@ -38,13 +38,19 @@ export default function PianoKeyboard() {
   const [mode, setMode] = useState<"single" | "chord">("single");
   const keyboard = useRef<HTMLDivElement>(null);
   const pointer = useRef<{ id: number; target: HTMLElement } | null>(null);
-  const midiHeld = useRef(new Set<number>());
+  const midi = useMidiSession();
   const screenHeld = useRef<number | null>(null);
-  const selectedMidi =
-    selection.midiNotes ?? voiceNotes(selection.notes, octave);
-  const labels = selectionNoteLabels(selection);
+  const { scaleMidi, scaleDescending, scalePlayback } = useStudioSession();
+  const descending =
+    scalePlayback.direction === "down" || (playing && scaleDescending);
+  const selectedNotes =
+    selection.kind === "scale" && descending
+      ? (selection.descendingNotes ?? selection.notes)
+      : selection.notes;
+  const selectedMidi = selection.midiNotes ?? voiceNotes(selectedNotes, octave);
+  const labels = selectionNoteLabels({ ...selection, descending });
   const soundHeld = useCallback(() => {
-    const held = [...midiHeld.current];
+    const held: number[] = [];
     if (screenHeld.current !== null) held.push(screenHeld.current);
     if (!held.length) {
       stop();
@@ -54,35 +60,9 @@ export default function PianoKeyboard() {
     select(next);
     void play(next);
   }, [play, select, stop]);
-  const onMidiPress = useCallback(
-    (note: number) => {
-      midiHeld.current.add(note);
-      soundHeld();
-    },
-    [soundHeld],
-  );
-  const onMidiRelease = useCallback(
-    (note: number) => {
-      if (midiHeld.current.delete(note)) soundHeld();
-    },
-    [soundHeld],
-  );
-  const midi = useMidiKeyboard({
-    onNotePress: onMidiPress,
-    onNoteRelease: onMidiRelease,
-    enabled: true,
-  });
   useEffect(() => {
-    if (!playing) {
-      midiHeld.current.clear();
-      screenHeld.current = null;
-    }
+    if (!playing) screenHeld.current = null;
   }, [playing]);
-  useEffect(() => {
-    midiHeld.current.clear();
-    screenHeld.current = null;
-    stop();
-  }, [midi.selectedDeviceId, stop]);
   const setPointerNote = (note: number | null) => {
     if (screenHeld.current === note) return;
     screenHeld.current = note;
@@ -118,18 +98,24 @@ export default function PianoKeyboard() {
   };
   const clear = () => {
     stop();
+    midi.panic();
     pointer.current = null;
     select(pianoSelection([]));
   };
   const keyLabel = (note: number) => {
-    const index = selection.notes.indexOf(NOTE_NAMES[note % 12]);
+    const index = selectedNotes.indexOf(NOTE_NAMES[note % 12]);
     return index >= 0 ? labels[index] : NOTE_NAMES[note % 12].replace("#", "♯");
   };
   const keyProps = (note: number) => ({
     type: "button" as const,
     "data-piano-note": note,
     "data-selected": selectedMidi.includes(note),
-    "data-sounding": playing && selectedMidi.includes(note),
+    "data-sounding":
+      (playing &&
+        (selection.kind === "scale"
+          ? scaleMidi === note
+          : selectedMidi.includes(note))) ||
+      midi.activeNotes.includes(note),
     "aria-label": `${NOTE_NAMES[note % 12].replace("#", " sharp ")} ${Math.floor(note / 12) - 1}`,
     "aria-pressed": selectedMidi.includes(note),
     onPointerDown: (event: PointerEvent<HTMLButtonElement>) =>
@@ -177,14 +163,24 @@ export default function PianoKeyboard() {
         <div className="piano-midi">
           <span>
             <Radio size={13} />{" "}
-            {midi.selectedDevice ? "MIDI connected" : "MIDI"}
+            {!midi.enabled
+              ? "MIDI muted"
+              : midi.selectedDevice
+                ? "MIDI connected"
+                : "MIDI"}
           </span>
           <MidiSettings
             devices={midi.devices}
             selectedDeviceId={midi.selectedDeviceId}
             onSelectDevice={midi.selectDevice}
             isSupported={midi.isSupported}
-            error={midi.error}
+            error={midi.error || midi.audioError || null}
+            onRequestAccess={midi.requestMidiAccess}
+            onPanic={midi.panic}
+            enabled={midi.enabled}
+            onToggleEnabled={midi.toggleEnabled}
+            onUnlock={midi.unlock}
+            audioReady={midi.audioReady}
           />
         </div>
       </div>
