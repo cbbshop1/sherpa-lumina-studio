@@ -6,6 +6,8 @@ import { formatNote } from "../lib/noteSelection";
 import { selectionNoteLabels } from "../lib/musicNotation";
 
 export function SessionBar() {
+  const { pathname } = useLocation();
+  const piano = pathname.replace(/\/+$/, "") === "/piano";
   const { selection, playing, play, stop, sound, updateSound, error, library } =
     useStudioSession();
   return (
@@ -16,7 +18,11 @@ export function SessionBar() {
             <i className={playing ? "status-light on" : "status-light"} />
             <div>
               <span className="studio-eyebrow">
-                {playing ? "PREVIEW PLAYING" : "YOUR SELECTION"}
+                {playing
+                  ? piano
+                    ? "PIANO PLAYING"
+                    : "PREVIEW PLAYING"
+                  : "YOUR SELECTION"}
               </span>
               <strong>
                 {formatNote(selection.name) || "Choose something to hear"}
@@ -35,7 +41,13 @@ export function SessionBar() {
               ) : (
                 <Play size={16} fill="currentColor" />
               )}
-              {playing ? "Stop preview" : "Play selection"}
+              {playing
+                ? piano
+                  ? "Stop sound"
+                  : "Stop preview"
+                : piano && selection.kind === "chord"
+                  ? "Play chord"
+                  : "Play selection"}
             </button>
             <span className="escape-label">ESC TO STOP</span>
           </div>

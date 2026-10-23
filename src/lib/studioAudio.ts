@@ -1,3 +1,8 @@
+import {
+  createInstrumentNote,
+  type InstrumentType,
+} from "../utils/instrumentSynthesis.ts";
+
 export type SoundSettings = {
   waveform: OscillatorType;
   volume: number;
@@ -6,10 +11,11 @@ export type SoundSettings = {
   release: number;
 };
 type Voice = {
-  oscillator: OscillatorNode;
+  oscillators: OscillatorNode[];
   gain: GainNode;
-  filter: BiquadFilterNode;
+  filter?: BiquadFilterNode;
   startAt: number;
+  instrument?: InstrumentType;
 };
 
 export class AudioEngine {
@@ -28,7 +34,12 @@ export class AudioEngine {
     return this.analyser;
   }
 
-  async play(frequencies: number[], settings: SoundSettings, strum = false) {
+  async play(
+    frequencies: number[],
+    settings: SoundSettings,
+    strum = false,
+    instrument?: InstrumentType,
+  ) {
     const generation = ++this.generation;
     if (!this.context) {
       this.context = this.factory();
@@ -51,10 +62,41 @@ export class AudioEngine {
     );
     const context = this.context;
     frequencies.forEach((frequency, i) => {
+      const startAt = context.currentTime + (strum ? i * 0.065 : 0);
+      if (instrument) {
+        const note = createInstrumentNote(
+          context,
+          frequency,
+          instrument,
+          true,
+          this.master!,
+          startAt,
+        );
+        const voice = {
+          oscillators: note.oscillators,
+          gain: note.gainNode,
+          filter: note.filterNode,
+          startAt,
+          instrument,
+        };
+        this.voices.add(voice);
+        let remaining = note.oscillators.length;
+        note.oscillators.forEach((oscillator) => {
+          oscillator.onended = () => {
+            oscillator.disconnect();
+            if (--remaining === 0) {
+              note.gainNode.disconnect();
+              note.filterNode?.disconnect();
+              this.voices.delete(voice);
+            }
+          };
+          oscillator.start(startAt);
+        });
+        return;
+      }
       const oscillator = context.createOscillator();
       const gain = context.createGain();
       const filter = context.createBiquadFilter();
-      const startAt = context.currentTime + (strum ? i * 0.065 : 0);
       oscillator.type = settings.waveform;
       oscillator.frequency.setValueAtTime(frequency, startAt);
       filter.type = "lowpass";
@@ -68,7 +110,7 @@ export class AudioEngine {
       oscillator.connect(filter);
       filter.connect(gain);
       gain.connect(this.master!);
-      const voice = { oscillator, gain, filter, startAt };
+      const voice = { oscillators: [oscillator], gain, filter, startAt };
       this.voices.add(voice);
       oscillator.onended = () => {
         oscillator.disconnect();
@@ -89,7 +131,9 @@ export class AudioEngine {
       0.02,
     );
     this.voices.forEach((voice) => {
-      voice.oscillator.type = settings.waveform;
+      // Instrument voices keep their own timbre; the common master controls volume.
+      if (voice.instrument || !voice.filter) return;
+      voice.oscillators[0].type = settings.waveform;
       voice.filter.frequency.setTargetAtTime(
         settings.cutoff,
         this.context!.currentTime,
@@ -111,7 +155,7 @@ export class AudioEngine {
       if (voice.startAt > now) {
         parameter.cancelScheduledValues(now);
         parameter.setValueAtTime(0, now);
-        voice.oscillator.stop(now);
+        voice.oscillators.forEach((oscillator) => oscillator.stop(now));
       } else {
         if (typeof parameter.cancelAndHoldAtTime === "function")
           parameter.cancelAndHoldAtTime(now);
@@ -121,7 +165,9 @@ export class AudioEngine {
           parameter.setValueAtTime(value, now);
         }
         parameter.linearRampToValueAtTime(0, now + release);
-        voice.oscillator.stop(now + release + 0.01);
+        voice.oscillators.forEach((oscillator) =>
+          oscillator.stop(now + release + 0.01),
+        );
       }
     });
   }

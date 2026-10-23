@@ -14,6 +14,9 @@ class Parameter {
     this.value = value;
     this.events.push({ kind: "ramp", value, time });
   }
+  exponentialRampToValueAtTime(value: number, time: number) {
+    this.linearRampToValueAtTime(value, time);
+  }
   setTargetAtTime(value: number, time: number) {
     this.value = value;
     this.events.push({ kind: "target", value, time });
@@ -25,6 +28,7 @@ class Node {
   connections: Node[] = [];
   gain = new Parameter();
   frequency = new Parameter();
+  detune = new Parameter();
   Q = new Parameter();
   type = "";
   startAt: number | null = null;
@@ -187,4 +191,55 @@ test("finished voices are disconnected and dispose closes the audio context", as
   engine.dispose();
   assert.equal(context.closed, true);
   assert.equal(engine.getAnalyser(), null);
+});
+
+test("the piano transport stops every instrument harmonic and can replay the same chord", async () => {
+  const { context, engine } = setup();
+  await engine.play([261.63, 311.13, 392], sound, false, "piano");
+  assert.equal(context.oscillators.length, 9);
+  engine.stop();
+  assert.ok(context.oscillators.every((voice) => voice.stopAt !== null));
+  await engine.play([261.63, 311.13, 392], sound, false, "piano");
+  assert.equal(context.oscillators.length, 18);
+  assert.ok(
+    context.oscillators.slice(9).every((voice) => voice.stopAt === null),
+  );
+});
+
+test("all six piano instruments share volume and preserve timbre when volume changes", async () => {
+  for (const instrument of [
+    "piano",
+    "organ",
+    "synth",
+    "epiano",
+    "strings",
+    "bell",
+  ] as const) {
+    const { context, engine } = setup();
+    await engine.play([440], sound, false, instrument);
+    const timbres = context.oscillators.map((voice) => voice.type);
+    engine.update({ ...sound, volume: 0 });
+    assert.equal(context.gains[0].gain.value, 0);
+    assert.deepEqual(
+      context.oscillators.map((voice) => voice.type),
+      timbres,
+    );
+    engine.stop();
+    assert.ok(context.oscillators.every((voice) => voice.stopAt !== null));
+  }
+});
+
+test("Stop cancels a piano chord while browser audio is still resuming", async () => {
+  const { context, engine } = setup();
+  context.state = "suspended";
+  let finish!: () => void;
+  context.resume = () =>
+    new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+  const pending = engine.play([261.63, 392], sound, false, "organ");
+  engine.stop();
+  finish();
+  assert.equal(await pending, false);
+  assert.equal(context.oscillators.length, 0);
 });

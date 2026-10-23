@@ -1,6 +1,6 @@
 # Sherpa Lumina Studio
 
-Version 0.2.0 introduces a dashboard with six focused workspaces, a warm studio theme, and a shared musical selection. Choosing a chord or scale previews its notes immediately; playback is a separate action. Your selection follows you between learning tools. The existing piano and sequencer retain their own instrument engines.
+Lumina has six focused workspaces, a warm studio theme, and a shared musical selection. Choosing a chord or scale previews its notes before playback. The piano now uses the shared bottom player, including Play, Stop, and volume, with a compact instrument menu. The sequencer retains its own transport.
 
 Sherpa Lumina Studio is a browser-based music theory and composition workspace. It combines an interactive learning surface for chords and scales, a pitch-pipe utility for ear training, and a lightweight multi-track sequencer built on the Web Audio and Web MIDI APIs.
 
@@ -199,3 +199,23 @@ src/
 - Studio patterns are kept in client state during the session.
 - Chord favorites and chord progressions persist only in the current browser profile.
 - Exported files are generated client-side and downloaded by the browser.
+
+## Piano update and The Clearing
+
+- The piano starts without a preset chord or permanently glowing keys.
+- Single notes sound while held; chord mode toggles notes and keeps the chord ready for replay.
+- The bottom player stops and replays built chords using the selected piano instrument. Stop preserves the selection; Clear removes it.
+- Chord names and note labels use the same contextual spelling as the chord library.
+- The instrument menu offers Piano, Organ, Synth Lead, E. Piano, Strings, and Bell.
+- The separate chord card below the keys has been removed. The chord readout lives in the player.
+- Escape, navigation, and hiding the tab stop playback. The upper C retains its actual C5 pitch.
+
+To build the static edition hosted inside The Clearing:
+
+```sh
+npm run build:clearing
+```
+
+Copy the contents of `dist-clearing` into the existing Clearing Site's `dist/lumina/` directory. The build includes physical entry pages for each tool so direct links and refreshes work. React Router uses the build's base path. The header links back to The Clearing's Learn room. The Clearing's Learn and Play collections both link to Lumina. The Sites source retains a copy of this app under `exhibits/lumina/`; keep that copy and its built assets together when updating.
+
+Automated tests cover contextual spelling, exact piano registers, instrument playback and cancellation, shared volume, and saved-library compatibility. External MIDI hardware and subjective audio quality require a listening/hardware check.

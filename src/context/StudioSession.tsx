@@ -12,11 +12,14 @@ import { midiToFrequency, voiceNotes } from "../lib/noteSelection";
 import { useChordProgressions } from "../hooks/useChordProgressions";
 import { useLocation } from "react-router-dom";
 
+import type { InstrumentType } from "../utils/instrumentSynthesis";
+
 export type Selection = {
   name: string;
   notes: string[];
   kind: "chord" | "note" | "scale";
   frequency?: number;
+  midiNotes?: number[];
 };
 const INITIAL_SOUND: SoundSettings = {
   waveform: "sine",
@@ -27,10 +30,12 @@ const INITIAL_SOUND: SoundSettings = {
 };
 function useSessionState() {
   const [selection, setSelection] = useState<Selection>({
-    name: "C major",
-    notes: ["C", "E", "G"],
+    name: "",
+    notes: [],
     kind: "chord",
   });
+  const { pathname } = useLocation();
+  const [instrument, setInstrumentState] = useState<InstrumentType>("piano");
   const [sound, setSound] = useState(INITIAL_SOUND);
   const [octave, setOctave] = useState(4);
   const [strum, setStrum] = useState(false);
@@ -38,8 +43,15 @@ function useSessionState() {
   const [error, setError] = useState("");
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const engine = useRef<AudioEngine | null>(null);
-  const latest = useRef({ selection, sound, octave, strum });
-  latest.current = { selection, sound, octave, strum };
+  const latest = useRef({
+    selection,
+    sound,
+    octave,
+    strum,
+    instrument,
+    pathname,
+  });
+  latest.current = { selection, sound, octave, strum, instrument, pathname };
   const request = useRef(0);
   const active = useRef(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -66,11 +78,16 @@ function useSessionState() {
       if (!engine.current) engine.current = new AudioEngine();
       const frequencies = target.frequency
         ? [target.frequency]
-        : voiceNotes(target.notes, value.octave).map(midiToFrequency);
+        : (target.midiNotes ?? voiceNotes(target.notes, value.octave)).map(
+            midiToFrequency,
+          );
       const started = await engine.current.play(
         frequencies,
         value.sound,
         value.strum,
+        value.pathname.replace(/\/+$/, "") === "/piano"
+          ? value.instrument
+          : undefined,
       );
       if (token !== request.current || !started) return;
       setAnalyser(engine.current.getAnalyser());
@@ -96,6 +113,14 @@ function useSessionState() {
       }
     },
     [play, stop, clearTimers],
+  );
+  const setInstrument = useCallback(
+    (next: InstrumentType) => {
+      latest.current.instrument = next;
+      setInstrumentState(next);
+      if (active.current) void play();
+    },
+    [play],
   );
   const updateSound = useCallback((patch: Partial<SoundSettings>) => {
     const next = { ...latest.current.sound, ...patch };
@@ -149,6 +174,8 @@ function useSessionState() {
   return {
     selection,
     select,
+    instrument,
+    setInstrument,
     sound,
     updateSound,
     octave,

@@ -1567,11 +1567,295 @@ input[type="range"] {
   }
 }
 
-.scope-axis { position: relative; height: 12px; }
+.scope-axis {
+  position: relative;
+  height: 12px;
+}
 @media (max-width: 760px) {
-  .session-inner { min-height: 110px; row-gap: 10px; }
-  .session-volume { display: flex; grid-column: 1 / -1; justify-content: flex-start; }
-  .session-volume input { flex: 1; width: auto; }
-  .session-volume svg { width: 14px; height: 14px; }
-  .lumina-app { padding-bottom: 132px; }
+  .session-inner {
+    min-height: 110px;
+    row-gap: 10px;
+  }
+  .session-volume {
+    display: flex;
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+  .session-volume input {
+    flex: 1;
+    width: auto;
+  }
+  .session-volume svg {
+    width: 14px;
+    height: 14px;
+  }
+  .lumina-app {
+    padding-bottom: 132px;
+  }
+}
+
+/* Piano: one compact work surface, with the shared player below. */
+.piano-workspace {
+  padding: 24px 30px 18px;
+  background: #152019;
+  border: 1px solid #a6b69228;
+  border-radius: 14px;
+}
+.piano-toolbar {
+  display: flex;
+  gap: 22px;
+  align-items: center;
+  justify-content: space-between;
+}
+.piano-instrument {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.piano-instrument .studio-eyebrow {
+  color: #9dac94;
+  font-size: 9px;
+}
+.piano-instrument select {
+  width: 150px;
+  padding: 9px 12px;
+  border: 1px solid #a6b69240;
+  border-radius: 7px;
+  background: #243027;
+  color: #e9dcc6;
+  font-size: 13px;
+}
+.piano-mode {
+  display: flex;
+  padding: 3px;
+  border: 1px solid #a6b69228;
+  border-radius: 8px;
+  background: #111a14;
+}
+.piano-mode button {
+  padding: 8px 14px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: #a6b39c;
+}
+.piano-mode button[aria-pressed="true"] {
+  background: #c6cfa8;
+  color: #253022;
+}
+.piano-midi,
+.piano-midi > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #a6b39c;
+}
+.piano-instruction {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 20px 0;
+  font-size: 12px;
+  color: #9dab96;
+}
+.piano-instruction button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  color: #ded0b8;
+}
+.piano-instruction button:disabled {
+  opacity: 0.4;
+}
+.piano-keybed {
+  position: relative;
+  max-width: 880px;
+  margin: 0 auto;
+  touch-action: none;
+  user-select: none;
+}
+.piano-white-keys {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 4px;
+}
+.piano-white-key {
+  position: relative;
+  height: clamp(180px, 25vw, 264px);
+  background: linear-gradient(#eae6d9, #fbf7ec 18%, #eee9dc 96%);
+  border: 1px solid #c7c4b4;
+  border-bottom: 6px solid #bcb9ac;
+  border-radius: 0 0 8px 8px;
+  color: #68705f;
+}
+.piano-keybed button > span {
+  position: absolute;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+}
+.piano-white-key small {
+  font-size: 9px;
+  opacity: 0.5;
+  margin-left: 3px;
+}
+.piano-black-key {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  width: 7.5%;
+  height: 62%;
+  background: linear-gradient(100deg, #131b16, #303b31 60%, #141d17);
+  border: 1px solid #0b120e;
+  border-bottom: 6px solid #080f0b;
+  border-radius: 0 0 6px 6px;
+  z-index: 2;
+  color: #9ba991;
+}
+.piano-keybed .piano-black-key > span {
+  font-size: 10px;
+  bottom: 12px;
+}
+.piano-white-key[data-selected="true"] {
+  background: linear-gradient(#d7dfc1, #dce7cb);
+  border-color: #9eaf85;
+}
+.piano-black-key[data-selected="true"] {
+  background: linear-gradient(#455540, #65794f);
+  border-color: #8c9f71;
+  color: #f0f3e6;
+}
+.piano-white-key[data-sounding="true"] {
+  background: linear-gradient(#e4bd92, #f4d3ac);
+  border-color: #d0a774;
+}
+.piano-black-key[data-sounding="true"] {
+  background: linear-gradient(#8e6b45, #c79862);
+  color: #fff4de;
+}
+.piano-keybed button:focus-visible {
+  outline: 3px solid #dfba8a;
+  outline-offset: 3px;
+  z-index: 3;
+}
+.piano-footnote {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin-top: 20px;
+  font-size: 10px;
+  color: #7e9077;
+}
+.piano-footnote > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.piano-footnote i {
+  display: inline-block;
+  width: 35px;
+  height: 1px;
+  background: #81927150;
+}
+.clearing-return:hover {
+  color: #ead1ac;
+}
+.lumina-header .clearing-return {
+  display: flex;
+  flex-shrink: 0;
+}
+@media (max-width: 760px) {
+  .lumina-header {
+    height: auto;
+  }
+  .lumina-header-inner {
+    flex-wrap: wrap;
+    padding-top: 14px;
+    padding-bottom: 10px;
+    gap: 12px;
+  }
+  .lumina-main-nav {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+  }
+}
+@media (max-width: 700px) {
+  .piano-page .workspace-nav {
+    padding: 12px 0;
+  }
+  .piano-page .workspace-nav .back-to-tools {
+    display: none;
+  }
+  .piano-page .workspace-nav > div {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .piano-page .workspace-title {
+    padding: 18px 0;
+  }
+  .piano-page .workspace-title .studio-eyebrow,
+  .piano-page .workspace-title > p {
+    display: none;
+  }
+  .piano-workspace {
+    padding: 16px 12px;
+  }
+  .piano-toolbar {
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .piano-instrument {
+    flex: 1;
+  }
+  .piano-instrument select {
+    width: 110px;
+  }
+  .piano-instrument {
+    gap: 8px;
+  }
+  .piano-instrument .studio-eyebrow {
+    font-size: 8px;
+  }
+  .piano-midi > span {
+    display: none;
+  }
+  .piano-midi button {
+    font-size: 0;
+    padding: 8px;
+    gap: 0;
+  }
+  .piano-mode {
+    order: 3;
+    width: 100%;
+  }
+  .piano-mode button {
+    flex: 1;
+  }
+  .piano-instruction {
+    align-items: flex-start;
+    font-size: 11px;
+  }
+  .piano-white-keys {
+    gap: 2px;
+  }
+  .piano-white-key {
+    border-bottom-width: 4px;
+  }
+  .piano-keybed button > span {
+    font-size: 11px;
+  }
+  .piano-keybed .piano-black-key > span {
+    font-size: 8px;
+  }
+  .piano-footnote > span:last-child {
+    text-align: right;
+    max-width: 185px;
+  }
 }

@@ -25,9 +25,16 @@ const AppNavigation = () => (
           <span>Studio</span>
         </NavLink>
       </nav>
-      <span className="header-note">
-        <i /> ROOM TO MAKE SOME NOISE
-      </span>
+      <a
+        className="header-note clearing-return"
+        href={
+          import.meta.env.BASE_URL === "/"
+            ? "https://the-clearing.cbbsherpa.chatgpt.site/#learn"
+            : "/#learn"
+        }
+      >
+        <i /> THE CLEARING ↗
+      </a>
     </div>
   </header>
 );

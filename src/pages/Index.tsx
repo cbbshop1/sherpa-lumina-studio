@@ -27,7 +27,6 @@ import {
 import ToolArtwork from "../components/ToolArtwork";
 import { useStudioSession } from "../context/StudioSession";
 import { selectionRoot } from "../lib/musicNotation";
-import { formatNote } from "../lib/noteSelection";
 
 const tools = [
   {
@@ -88,7 +87,8 @@ const tools = [
 ];
 
 const Index = () => {
-  const { pathname } = useLocation();
+  const { pathname: rawPathname } = useLocation();
+  const pathname = rawPathname.replace(/\/+$/, "") || "/";
   const session = useStudioSession();
   const { selection, select, play, library } = session;
   useStopOnNavigation();
@@ -113,7 +113,9 @@ const Index = () => {
     void play(next);
   };
   return (
-    <div className="lumina-app">
+    <div
+      className={pathname === "/piano" ? "lumina-app piano-page" : "lumina-app"}
+    >
       <AppNavigation />
       <main className="lumina-main">
         {isHome ? (
@@ -212,12 +214,7 @@ const Index = () => {
               <p>{active?.description}</p>
             </div>
             {pathname === "/piano" ? (
-              <div className="legacy-piano">
-                <PianoKeyboard
-                  highlightedNotes={selection.notes}
-                  libraryChordName={formatNote(selection.name)}
-                />
-              </div>
+              <PianoKeyboard />
             ) : (
               <div className="learning-layout">
                 <section className="focused-tool">
