@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { readMusic, isSavedChord, isProgression } from "../lib/musicStorage";
+import { toggleFavoriteChord } from "../lib/favoriteChords";
 
 export interface SavedChord {
   id: string;
@@ -79,7 +80,17 @@ export const useChordProgressions = () => {
       name,
       notes,
     };
-    setFavorites((prev) => [...prev, newFavorite]);
+    setFavorites((prev) =>
+      prev.some((favorite) => favorite.name === name)
+        ? prev
+        : [...prev, newFavorite],
+    );
+  };
+
+  const toggleFavorite = (name: string, notes: string[]) => {
+    setFavorites((prev) =>
+      toggleFavoriteChord(prev, { id: crypto.randomUUID(), name, notes }),
+    );
   };
 
   const removeFavorite = (id: string) => {
@@ -151,6 +162,7 @@ export const useChordProgressions = () => {
     progressions,
     storageError,
     addFavorite,
+    toggleFavorite,
     removeFavorite,
     isFavorite,
     createProgression,

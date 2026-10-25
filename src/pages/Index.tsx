@@ -69,7 +69,7 @@ const tools = [
     kind: "pitch",
     title: "Pitch & tone",
     label: "GET A FEEL FOR FREQUENCY",
-    description: "Find a reference pitch. Shape a tone. Look inside the sound.",
+    description: "Find a reference pitch, or record and see your own sound.",
     icon: Radio,
     color: "gold",
   },
@@ -196,23 +196,6 @@ const Index = () => {
           </>
         ) : (
           <>
-            <nav className="workspace-nav" aria-label="Explore tools">
-              <Link className="back-to-tools" to="/">
-                <ArrowLeft size={15} /> All tools
-              </Link>
-              <div>
-                {tools.slice(0, 4).map((t) => (
-                  <Link
-                    key={t.path}
-                    to={t.path}
-                    aria-current={pathname === t.path ? "page" : undefined}
-                    className={pathname === t.path ? "active" : ""}
-                  >
-                    {t.title}
-                  </Link>
-                ))}
-              </div>
-            </nav>
             <div className="workspace-title">
               <div>
                 <p className="studio-eyebrow">YOUR MUSICAL WORKBENCH</p>
@@ -245,7 +228,8 @@ const Index = () => {
                           ? selection.name
                           : undefined
                       }
-                      onAddFavorite={library.addFavorite}
+                      onToggleFavorite={library.toggleFavorite}
+                      favorites={library.favorites}
                       isFavorite={library.isFavorite}
                     />
                   )}

@@ -245,3 +245,18 @@ Theory references: [Open Music Theory: Minor Scales](https://viva.pressbooks.pub
 The supplied L/equalizer logo is used in the header, dashboard signature, browser icon and sharing metadata. Its blue is replaced by ruby and coral, retaining the champagne-to-amber gradient and a transparent background. The live wordmark and page titles use locally hosted Poppins Bold as a close visual match to the supplied lettering. The font's SIL Open Font License is retained in `public/fonts/OFL-Poppins.txt`.
 
 Brand asset: `public/brand/lumina-coral-mark-v1.png`. Edited using the built-in image generation tool from the supplied reference. Prompt: isolate the original L/equalizer monogram on a transparent background; preserve its silhouette, rounded edges, dimensional shading and amber regions; replace blue/cyan with a deep ruby-to-coral gradient blending into champagne and gold; no text, tile or mockup. Font source: https://github.com/google/fonts/tree/main/ofl/poppins.
+
+
+## Version 0.4.0: favorites, navigation, and your own sound
+
+Chord hearts now toggle on and off. Favorites collects saved chords from every root, with contextual spelling and a useful empty state. Unfavoriting removes matching duplicate names from older libraries while preserving all other favorites and chords already used in progressions. Existing browser storage keys and data shapes are unchanged.
+
+Every workspace shares the same direct navigation to All tools, Piano, Chords, Scales, Progressions, Pitch & tone, and Studio. Smaller screens use one Go to a tool picker. Pitch & tone keeps three local views with URL-backed state, including working direct links and browser history for the tone generator.
+
+See the sound has A studio tone and My own sound sources. Record up to 30 seconds from a microphone after an explicit click and permission, or import a short audio file (up to 30 seconds and 12 MB). View the entire waveform, inspect a 10/30/60/100 ms window, and see a live spectrum during recording or playback. Microphone takes download as PCM WAV. Inputs are not monitored through speakers. Playback, import errors and new takes preserve the previous clip until a replacement succeeds.
+
+Audio stays in memory in the current tab while navigating Lumina. Nothing is uploaded. Download a take before refreshing or closing the tab. Leaving the view, switching sound sources, Escape, tab hiding, Stop, or the recording limit releases microphone tracks. Canceling a pending permission request also stops a stream that arrives late. Microphone support and permissions depend on the browser; importing audio remains available when microphone capture is unsupported.
+
+Validation covers favorite toggling and legacy duplicates, microphone cleanup/cancellation/denial/timeout, WAV encoding, waveform peaks and window bounds, plus the existing notation, MIDI and audio tests. Browser checks use a generated six-second WAV for importing, playback, spectrum, magnification, navigation retention, the download link, and preserving a take after a failed import. The embedded preview did not confirm final file delivery from its download action; WAV encoding passes automated checks. Physical microphone recording, the browser save step, and subjective input quality require a hands-on check.
+
+Browser API references: [MediaRecorder](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder), [getUserMedia](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia), [decodeAudioData](https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/decodeAudioData).

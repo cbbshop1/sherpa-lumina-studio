@@ -4,10 +4,16 @@ export default function SoundScope({
   analyser,
   playing,
   mode,
+  sourceLabel = "LIVE OUTPUT",
+  emptyTitle = "Give the silence a shape.",
+  emptyHint = "Play your selection to look inside the sound.",
 }: {
   analyser: AnalyserNode | null;
   playing: boolean;
   mode: "waveform" | "spectrum";
+  sourceLabel?: string;
+  emptyTitle?: string;
+  emptyHint?: string;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -80,7 +86,7 @@ export default function SoundScope({
       <div className="scope-heading">
         <span>
           <i className={`status-light ${playing ? "on" : ""}`} />
-          {playing ? "LIVE OUTPUT" : "STANDBY"}
+          {playing ? sourceLabel : "STANDBY"}
         </span>
         <span>
           {mode === "waveform" ? "AMPLITUDE / TIME" : "LOG FREQUENCY / Hz"}
@@ -101,8 +107,8 @@ export default function SoundScope({
         {!playing && (
           <div className="scope-empty">
             <AudioLines size={34} strokeWidth={1} />
-            <strong>Give the silence a shape.</strong>
-            <span>Play your selection to look inside the sound.</span>
+            <strong>{emptyTitle}</strong>
+            <span>{emptyHint}</span>
           </div>
         )}
       </div>
@@ -112,8 +118,27 @@ export default function SoundScope({
           : ["0", "TIME →"]
         ).map((label, index, labels) => {
           const frequency = [20, 100, 1000, 10000, 20000][index];
-          const position = mode === "spectrum" ? Math.log(frequency / 20) / Math.log(1000) * 100 : index * 100;
-          return <span key={label} style={{position: "absolute", left: `${position}%`, transform: index === 0 ? "none" : index === labels.length - 1 ? "translateX(-100%)" : "translateX(-50%)"}}>{label}</span>;
+          const position =
+            mode === "spectrum"
+              ? (Math.log(frequency / 20) / Math.log(1000)) * 100
+              : index * 100;
+          return (
+            <span
+              key={label}
+              style={{
+                position: "absolute",
+                left: `${position}%`,
+                transform:
+                  index === 0
+                    ? "none"
+                    : index === labels.length - 1
+                      ? "translateX(-100%)"
+                      : "translateX(-50%)",
+              }}
+            >
+              {label}
+            </span>
+          );
         })}
       </div>
     </div>
