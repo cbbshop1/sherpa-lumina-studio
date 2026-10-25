@@ -24,6 +24,12 @@ interface MidiSettingsProps {
   onSelectDevice: (deviceId: string | null) => void;
   isSupported: boolean;
   error: string | null;
+  onRequestAccess?: () => Promise<boolean>;
+  onPanic?: () => void;
+  enabled?: boolean;
+  onToggleEnabled?: () => void;
+  onUnlock?: () => Promise<void>;
+  audioReady?: boolean;
 }
 
 const MidiSettings = ({
@@ -32,6 +38,12 @@ const MidiSettings = ({
   onSelectDevice,
   isSupported,
   error,
+  onRequestAccess,
+  onPanic,
+  enabled = true,
+  onToggleEnabled,
+  onUnlock,
+  audioReady = true,
 }: MidiSettingsProps) => {
   return (
     <Dialog>
@@ -51,13 +63,40 @@ const MidiSettings = ({
             Connect your MIDI keyboard to play any note
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-6 py-4">
+          <div className="flex flex-wrap gap-2">
+            {isSupported && onRequestAccess && (
+              <Button onClick={() => void onRequestAccess()}>
+                Connect MIDI
+              </Button>
+            )}
+            {onPanic && (
+              <Button variant="outline" onClick={onPanic}>
+                All notes off
+              </Button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {onToggleEnabled && (
+              <Button
+                variant="outline"
+                aria-pressed={enabled}
+                onClick={onToggleEnabled}
+              >
+                {enabled ? "MIDI on" : "MIDI muted"}
+              </Button>
+            )}
+            {onUnlock && !audioReady && (
+              <Button onClick={() => void onUnlock()}>Enable MIDI sound</Button>
+            )}
+          </div>
           {/* Browser Support Warning */}
           {!isSupported && (
             <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
               <p className="text-sm text-destructive">
-                Your browser doesn't support Web MIDI. Try Chrome, Edge, or Opera.
+                Your browser doesn't support Web MIDI. Try Chrome, Edge, or
+                Opera.
               </p>
             </div>
           )}
@@ -75,7 +114,9 @@ const MidiSettings = ({
               <Label htmlFor="midi-device">MIDI Device</Label>
               <Select
                 value={selectedDeviceId || "none"}
-                onValueChange={(value) => onSelectDevice(value === "none" ? null : value)}
+                onValueChange={(value) =>
+                  onSelectDevice(value === "none" ? null : value)
+                }
               >
                 <SelectTrigger id="midi-device">
                   <SelectValue placeholder="Select a MIDI device" />
@@ -91,7 +132,8 @@ const MidiSettings = ({
               </Select>
               {devices.length === 0 && (
                 <p className="text-xs text-muted-foreground">
-                  No MIDI devices detected. Connect a MIDI keyboard and refresh the page.
+                  No MIDI devices detected. Connect your keyboard, then choose
+                  Connect MIDI if permission is needed.
                 </p>
               )}
             </div>
@@ -101,8 +143,9 @@ const MidiSettings = ({
           {isSupported && (
             <div className="p-4 rounded-lg bg-muted/50 border border-border">
               <p className="text-xs text-muted-foreground">
-                <strong>Full keyboard support:</strong> All 128 MIDI notes are now playable. 
-                Notes in the C4-C5 range will also highlight on the on-screen piano.
+                <strong>Play from any workspace:</strong> Your MIDI connection
+                follows you between tools. In Studio, MIDI plays and records
+                into the armed track. Escape releases all notes.
               </p>
             </div>
           )}

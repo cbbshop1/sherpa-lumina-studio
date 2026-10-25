@@ -1,160 +1,204 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BookOpen, Play, Heart } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { BookOpen, Play, Square, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  ROOT_SPELLINGS,
+  chordsForRoot,
+  spelledChordNotes,
+} from "../lib/musicNotation";
+import { formatNote } from "../lib/noteSelection";
+import type { SavedChord } from "../hooks/useChordProgressions";
 
-const KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-
-interface Chord {
-  name: string;
-  suffix: string;
-  notes: string[];
-}
-
-const getChordNotes = (root: string): Chord[] => {
-  const rootIndex = KEYS.indexOf(root);
-  
-  const getNote = (semitones: number): string => {
-    const index = (rootIndex + semitones) % 12;
-    return KEYS[index];
-  };
-
-  return [
-    { name: "Major", suffix: "", notes: [root, getNote(4), getNote(7)] },
-    { name: "Minor", suffix: "m", notes: [root, getNote(3), getNote(7)] },
-    { name: "Dominant 7", suffix: "7", notes: [root, getNote(4), getNote(7), getNote(10)] },
-    { name: "Major 7", suffix: "maj7", notes: [root, getNote(4), getNote(7), getNote(11)] },
-    { name: "Minor 7", suffix: "m7", notes: [root, getNote(3), getNote(7), getNote(10)] },
-    { name: "Diminished", suffix: "dim", notes: [root, getNote(3), getNote(6)] },
-    { name: "Augmented", suffix: "aug", notes: [root, getNote(4), getNote(8)] },
-    { name: "Sus2", suffix: "sus2", notes: [root, getNote(2), getNote(7)] },
-    { name: "Sus4", suffix: "sus4", notes: [root, getNote(5), getNote(7)] },
-    { name: "6", suffix: "6", notes: [root, getNote(4), getNote(7), getNote(9)] },
-    { name: "Minor 6", suffix: "m6", notes: [root, getNote(3), getNote(7), getNote(9)] },
-    { name: "9", suffix: "9", notes: [root, getNote(4), getNote(7), getNote(10), getNote(14)] },
-  ];
-};
-
-interface ChordLibraryProps {
-  onChordSelect: (notes: string[], chordName: string) => void;
+export default function ChordLibrary({
+  initialKey = "C",
+  onChordSelect,
+  selectedChordNotes,
+  onPlayChord,
+  playingChordName,
+  onToggleFavorite,
+  isFavorite,
+  favorites,
+}: {
+  initialKey?: string;
+  onChordSelect: (notes: string[], name: string) => void;
   selectedChordNotes: string[];
-  onPlayChord: (notes: string[]) => void;
-  onAddFavorite: (name: string, notes: string[]) => void;
+  onPlayChord: (notes: string[], name?: string) => void;
+  playingChordName?: string;
+  onToggleFavorite: (name: string, notes: string[]) => void;
   isFavorite: (name: string) => boolean;
-}
-
-const ChordLibrary = ({ onChordSelect, selectedChordNotes, onPlayChord, onAddFavorite, isFavorite }: ChordLibraryProps) => {
+  favorites: SavedChord[];
+}) {
   const { toast } = useToast();
-  const [selectedKey, setSelectedKey] = useState("C");
-  const chords = getChordNotes(selectedKey);
-
-  const handleChordClick = (chord: Chord) => {
-    const chordName = `${selectedKey}${chord.suffix}`;
-    // Toggle selection - clicking same chord again deselects it
-    if (isChordSelected(chord.notes)) {
-      onChordSelect([], "");
-    } else {
-      onChordSelect(chord.notes, chordName);
-    }
-  };
-
-  const handleAddFavorite = (chord: Chord) => {
-    const chordName = `${selectedKey}${chord.suffix}`;
-    onAddFavorite(chordName, chord.notes);
-    toast({
-      title: "Chord saved!",
-      description: `${chordName} added to favorites`,
-    });
-  };
-
-  const isChordSelected = (notes: string[]) => {
-    if (notes.length !== selectedChordNotes.length) return false;
-    return notes.every(note => selectedChordNotes.includes(note));
-  };
-
+  const [selectedKey, setSelectedKey] = useState(
+    ROOT_SPELLINGS.includes(initialKey) ? initialKey : "C",
+  );
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const chords = chordsForRoot(selectedKey);
+  const saved = [
+    ...new Map(favorites.map((chord) => [chord.name, chord])).values(),
+  ];
+  const rows = onlyFavorites
+    ? saved.map((chord) => ({
+        ...chord,
+        label: "Saved chord",
+        spellings: spelledChordNotes(chord.name, chord.notes),
+      }))
+    : chords.map((chord) => ({
+        id: selectedKey + chord.suffix,
+        name: selectedKey + chord.suffix,
+        label: chord.name,
+        notes: chord.notes,
+        spellings: chord.spellings,
+      }));
+  const selected = (notes: string[]) =>
+    notes.length === selectedChordNotes.length &&
+    notes.every((note) => selectedChordNotes.includes(note));
   return (
     <section className="py-20 px-6">
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            Chord <span className="gradient-text">Library</span>
-          </h2>
-          <p className="text-lg text-muted-foreground mb-6">
-            Browse common chords and see them highlighted on the piano
-          </p>
-        </div>
-
         <Card className="glass-effect p-8 rounded-3xl">
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-2 text-foreground">
-              Select Key
-            </label>
-            <Select value={selectedKey} onValueChange={setSelectedKey}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {KEYS.map((key) => (
-                  <SelectItem key={key} value={key}>
-                    {key}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="chord-library-toolbar">
+            <div
+              className="scope-switch"
+              role="group"
+              aria-label="Chord collection"
+            >
+              <button
+                aria-pressed={!onlyFavorites}
+                className={!onlyFavorites ? "active" : ""}
+                onClick={() => setOnlyFavorites(false)}
+              >
+                All chords
+              </button>
+              <button
+                aria-pressed={onlyFavorites}
+                className={onlyFavorites ? "active" : ""}
+                onClick={() => setOnlyFavorites(true)}
+              >
+                Favorites ({saved.length})
+              </button>
+            </div>
+            {!onlyFavorites && (
+              <label className="chord-root-label">
+                Root
+                <Select
+                  value={selectedKey}
+                  onValueChange={(next) => {
+                    const index = chords.findIndex((chord) =>
+                      selected(chord.notes),
+                    );
+                    setSelectedKey(next);
+                    if (index >= 0) {
+                      const chord = chordsForRoot(next)[index];
+                      onChordSelect(chord.notes, next + chord.suffix);
+                    }
+                  }}
+                >
+                  <SelectTrigger aria-label="Chord root" className="w-32">
+                    <SelectValue>{formatNote(selectedKey)}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROOT_SPELLINGS.map((root) => (
+                      <SelectItem key={root} value={root}>
+                        {formatNote(root)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+            )}
           </div>
-
+          <p className="favorite-hint">
+            {onlyFavorites
+              ? "Your saved chords from every root. Tap a filled heart to remove one."
+              : "Tap a heart to save a chord. Tap it again to unfavorite."}
+          </p>
+          {onlyFavorites && !rows.length && (
+            <div className="favorites-empty">
+              <Heart size={26} />
+              <h2>No favorites yet</h2>
+              <p>Find a chord you like in All chords and tap its heart.</p>
+              <button onClick={() => setOnlyFavorites(false)}>
+                Browse all chords
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {chords.map((chord) => {
-              const isSelected = isChordSelected(chord.notes);
-              const chordName = `${selectedKey}${chord.suffix}`;
-              const isFav = isFavorite(chordName);
+            {rows.map((chord) => {
+              const isSelected = selected(chord.notes),
+                isFav = isFavorite(chord.name),
+                isPlaying = isSelected && playingChordName === chord.name;
               return (
-                <div key={chord.name} className="relative group">
+                <div key={chord.id} className="relative group">
                   <Button
                     variant={isSelected ? "default" : "outline"}
-                    onClick={() => handleChordClick(chord)}
-                    className="w-full h-auto py-4 flex flex-col items-center gap-2 transition-all duration-200"
+                    className="chord-choice w-full h-auto py-4 flex flex-col items-center gap-2"
+                    aria-pressed={isSelected}
+                    aria-label={`Select ${formatNote(chord.name)} ${chord.label}`}
+                    onClick={() =>
+                      onChordSelect(
+                        isSelected ? [] : chord.notes,
+                        isSelected ? "" : chord.name,
+                      )
+                    }
                   >
                     <BookOpen className="w-4 h-4" />
-                    <div className="flex flex-col items-center">
-                      <span className="font-bold">
-                        {selectedKey}{chord.suffix}
-                      </span>
-                      <span className="text-xs opacity-80">
-                        {chord.name}
-                      </span>
-                    </div>
+                    <span className="font-bold">{formatNote(chord.name)}</span>
+                    <span className="text-xs opacity-80">{chord.label}</span>
                     <span className="text-xs opacity-60">
-                      {chord.notes.join(" - ")}
+                      {chord.spellings.map(formatNote).join(" · ")}
                     </span>
                   </Button>
-                  <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div
+                    className={`chord-card-actions absolute -top-2 -right-2 flex gap-1 transition-opacity ${isPlaying ? "is-playing" : ""} ${isFav ? "is-favorite" : ""}`}
+                  >
                     <Button
                       size="icon"
                       variant="secondary"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onPlayChord(chord.notes);
-                      }}
                       className="w-8 h-8 rounded-full shadow-lg"
-                      title="Play chord"
+                      aria-pressed={isPlaying}
+                      aria-label={`${isPlaying ? "Stop" : "Play"} ${formatNote(chord.name)} ${chord.label}`}
+                      onClick={() => onPlayChord(chord.notes, chord.name)}
                     >
-                      <Play className="w-3 h-3" />
+                      {isPlaying ? (
+                        <Square className="w-3 h-3" fill="currentColor" />
+                      ) : (
+                        <Play className="w-3 h-3" />
+                      )}
                     </Button>
                     <Button
                       size="icon"
                       variant={isFav ? "default" : "secondary"}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAddFavorite(chord);
-                      }}
                       className="w-8 h-8 rounded-full shadow-lg"
-                      title={isFav ? "Already in favorites" : "Add to favorites"}
-                      disabled={isFav}
+                      aria-pressed={isFav}
+                      title={
+                        isFav ? "Remove from favorites" : "Add to favorites"
+                      }
+                      aria-label={
+                        isFav
+                          ? `Remove ${formatNote(chord.name)} from favorites`
+                          : `Save ${formatNote(chord.name)} to favorites`
+                      }
+                      onClick={() => {
+                        onToggleFavorite(chord.name, chord.notes);
+                        toast({
+                          title: isFav ? "Chord unfavorited" : "Chord saved",
+                          description: `${formatNote(chord.name)} ${isFav ? "removed from" : "added to"} favorites`,
+                        });
+                      }}
                     >
-                      <Heart className={`w-3 h-3 ${isFav ? "fill-current" : ""}`} />
+                      <Heart
+                        className={`w-3 h-3 ${isFav ? "fill-current" : ""}`}
+                      />
                     </Button>
                   </div>
                 </div>
@@ -165,6 +209,4 @@ const ChordLibrary = ({ onChordSelect, selectedChordNotes, onPlayChord, onAddFav
       </div>
     </section>
   );
-};
-
-export default ChordLibrary;
+}

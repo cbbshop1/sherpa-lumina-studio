@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { readMusic, isSavedChord, isProgression } from "../lib/musicStorage";
+import { toggleFavoriteChord } from "../lib/favoriteChords";
 
 export interface SavedChord {
   id: string;
@@ -18,30 +20,59 @@ const STORAGE_KEYS = {
 };
 
 export const useChordProgressions = () => {
-  const [favorites, setFavorites] = useState<SavedChord[]>([]);
-  const [progressions, setProgressions] = useState<ChordProgression[]>([]);
-
-  // Load from localStorage on mount
-  useEffect(() => {
-    const savedFavorites = localStorage.getItem(STORAGE_KEYS.FAVORITES);
-    const savedProgressions = localStorage.getItem(STORAGE_KEYS.PROGRESSIONS);
-
-    if (savedFavorites) {
-      setFavorites(JSON.parse(savedFavorites));
+  const read = <T>(
+    key: string,
+    validate: (value: unknown) => boolean,
+  ): { value: T[]; readable: boolean } => {
+    try {
+      return readMusic<T>(localStorage, key, validate);
+    } catch {
+      return { value: [], readable: false };
     }
-    if (savedProgressions) {
-      setProgressions(JSON.parse(savedProgressions));
-    }
-  }, []);
+  };
+  const [initialFavorites] = useState(() =>
+    read<SavedChord>(STORAGE_KEYS.FAVORITES, isSavedChord),
+  );
+  const [initialProgressions] = useState(() =>
+    read<ChordProgression>(STORAGE_KEYS.PROGRESSIONS, isProgression),
+  );
+  const [favorites, setFavorites] = useState<SavedChord[]>(
+    initialFavorites.value,
+  );
+  const [progressions, setProgressions] = useState<ChordProgression[]>(
+    initialProgressions.value,
+  );
+  const [storageError, setStorageError] = useState(
+    !initialFavorites.readable || !initialProgressions.readable
+      ? "Some saved music could not be read. The original saved data has been kept; new edits may only last for this session."
+      : "",
+  );
 
   // Save to localStorage whenever data changes
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites));
-  }, [favorites]);
+    if (!initialFavorites.readable) return;
+    try {
+      localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites));
+    } catch {
+      setStorageError(
+        "Browser storage is unavailable. New favorites and progressions will only last for this session.",
+      );
+    }
+  }, [favorites, initialFavorites.readable]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.PROGRESSIONS, JSON.stringify(progressions));
-  }, [progressions]);
+    if (!initialProgressions.readable) return;
+    try {
+      localStorage.setItem(
+        STORAGE_KEYS.PROGRESSIONS,
+        JSON.stringify(progressions),
+      );
+    } catch {
+      setStorageError(
+        "Browser storage is unavailable. New favorites and progressions will only last for this session.",
+      );
+    }
+  }, [progressions, initialProgressions.readable]);
 
   const addFavorite = (name: string, notes: string[]) => {
     const newFavorite: SavedChord = {
@@ -49,7 +80,17 @@ export const useChordProgressions = () => {
       name,
       notes,
     };
-    setFavorites((prev) => [...prev, newFavorite]);
+    setFavorites((prev) =>
+      prev.some((favorite) => favorite.name === name)
+        ? prev
+        : [...prev, newFavorite],
+    );
+  };
+
+  const toggleFavorite = (name: string, notes: string[]) => {
+    setFavorites((prev) =>
+      toggleFavoriteChord(prev, { id: crypto.randomUUID(), name, notes }),
+    );
   };
 
   const removeFavorite = (id: string) => {
@@ -79,25 +120,31 @@ export const useChordProgressions = () => {
       prev.map((prog) =>
         prog.id === progressionId
           ? { ...prog, chords: [...prog.chords, chord] }
-          : prog
-      )
+          : prog,
+      ),
     );
   };
 
-  const removeChordFromProgression = (progressionId: string, chordIndex: number) => {
+  const removeChordFromProgression = (
+    progressionId: string,
+    chordIndex: number,
+  ) => {
     setProgressions((prev) =>
       prev.map((prog) =>
         prog.id === progressionId
-          ? { ...prog, chords: prog.chords.filter((_, idx) => idx !== chordIndex) }
-          : prog
-      )
+          ? {
+              ...prog,
+              chords: prog.chords.filter((_, idx) => idx !== chordIndex),
+            }
+          : prog,
+      ),
     );
   };
 
   const reorderChordInProgression = (
     progressionId: string,
     fromIndex: number,
-    toIndex: number
+    toIndex: number,
   ) => {
     setProgressions((prev) =>
       prev.map((prog) => {
@@ -106,14 +153,16 @@ export const useChordProgressions = () => {
         const [removed] = newChords.splice(fromIndex, 1);
         newChords.splice(toIndex, 0, removed);
         return { ...prog, chords: newChords };
-      })
+      }),
     );
   };
 
   return {
     favorites,
     progressions,
+    storageError,
     addFavorite,
+    toggleFavorite,
     removeFavorite,
     isFavorite,
     createProgression,

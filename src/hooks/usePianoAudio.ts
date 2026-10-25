@@ -34,6 +34,10 @@ interface ActiveNote {
   filterNode?: BiquadFilterNode;
 }
 
+type WebKitAudioWindow = Window & {
+  webkitAudioContext?: typeof AudioContext;
+};
+
 export const usePianoAudio = () => {
   const [currentInstrument, setCurrentInstrument] = useState<InstrumentType>('piano');
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -42,7 +46,14 @@ export const usePianoAudio = () => {
 
   const getAudioContext = useCallback(() => {
     if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextConstructor =
+        window.AudioContext || (window as WebKitAudioWindow).webkitAudioContext;
+
+      if (!AudioContextConstructor) {
+        throw new Error('Web Audio is not supported in this browser.');
+      }
+
+      audioContextRef.current = new AudioContextConstructor();
     }
     return audioContextRef.current;
   }, []);
@@ -67,36 +78,41 @@ export const usePianoAudio = () => {
     const stopTime = getInstrumentAutoStopTime(currentInstrument);
     setTimeout(() => {
       oscillators.forEach(osc => {
-        try { osc.stop(); } catch {}
+        try { osc.stop(); } catch {
+          // Oscillator may already have stopped.
+        }
       });
     }, stopTime * 1000);
   }, [getAudioContext, currentInstrument]);
 
-  // Play/stop chord note by name (for on-screen piano)
-  const playChordNote = useCallback((note: string, shouldStop: boolean) => {
+  const stopNote = useCallback((note: string) => {
     const frequency = noteFrequencies[note];
     if (!frequency) return;
 
     const audioContext = getAudioContext();
+    const active = activeNotesRef.current.get(note);
+    if (!active) return;
 
-    // If stopping, fade out and remove
-    if (shouldStop) {
-      const active = activeNotesRef.current.get(note);
-      if (active) {
-        const now = audioContext.currentTime;
-        const releaseTime = getInstrumentReleaseTime(currentInstrument);
-        
-        active.gainNode.gain.cancelScheduledValues(now);
-        active.gainNode.gain.setValueAtTime(active.gainNode.gain.value, now);
-        active.gainNode.gain.linearRampToValueAtTime(0, now + releaseTime);
-        
-        active.oscillators.forEach(osc => {
-          try { osc.stop(now + releaseTime); } catch {}
-        });
-        activeNotesRef.current.delete(note);
+    const now = audioContext.currentTime;
+    const releaseTime = getInstrumentReleaseTime(currentInstrument);
+
+    active.gainNode.gain.cancelScheduledValues(now);
+    active.gainNode.gain.setValueAtTime(active.gainNode.gain.value, now);
+    active.gainNode.gain.linearRampToValueAtTime(0, now + releaseTime);
+
+    active.oscillators.forEach(osc => {
+      try { osc.stop(now + releaseTime); } catch {
+        // Oscillator may already have stopped.
       }
-      return;
-    }
+    });
+    activeNotesRef.current.delete(note);
+  }, [getAudioContext, currentInstrument]);
+
+  const startNote = useCallback((note: string) => {
+    const frequency = noteFrequencies[note];
+    if (!frequency) return;
+
+    const audioContext = getAudioContext();
 
     // If already playing, don't start again
     if (activeNotesRef.current.has(note)) return;
@@ -111,9 +127,19 @@ export const usePianoAudio = () => {
 
     // Start all oscillators
     oscillators.forEach(osc => osc.start());
-    
+
     activeNotesRef.current.set(note, { oscillators, gainNode, filterNode });
   }, [getAudioContext, currentInstrument]);
+
+  // Play/stop chord note by name (for on-screen piano)
+  const playChordNote = useCallback((note: string, shouldStop: boolean) => {
+    if (shouldStop) {
+      stopNote(note);
+      return;
+    }
+
+    startNote(note);
+  }, [startNote, stopNote]);
 
   // Play a single MIDI note (momentary, with auto-release)
   const playMidiNote = useCallback((midiNote: number) => {
@@ -134,7 +160,9 @@ export const usePianoAudio = () => {
     const stopTime = getInstrumentAutoStopTime(currentInstrument);
     setTimeout(() => {
       oscillators.forEach(osc => {
-        try { osc.stop(); } catch {}
+        try { osc.stop(); } catch {
+          // Oscillator may already have stopped.
+        }
       });
     }, stopTime * 1000);
   }, [getAudioContext, currentInstrument]);
@@ -155,7 +183,9 @@ export const usePianoAudio = () => {
         active.gainNode.gain.linearRampToValueAtTime(0, now + releaseTime);
         
         active.oscillators.forEach(osc => {
-          try { osc.stop(now + releaseTime); } catch {}
+          try { osc.stop(now + releaseTime); } catch {
+            // Oscillator may already have stopped.
+          }
         });
         activeMidiNotesRef.current.delete(midiNote);
       }
@@ -193,7 +223,9 @@ export const usePianoAudio = () => {
       active.gainNode.gain.setValueAtTime(active.gainNode.gain.value, now);
       active.gainNode.gain.linearRampToValueAtTime(0, now + releaseTime);
       active.oscillators.forEach(osc => {
-        try { osc.stop(now + releaseTime); } catch {}
+        try { osc.stop(now + releaseTime); } catch {
+          // Oscillator may already have stopped.
+        }
       });
     });
     activeNotesRef.current.clear();
@@ -204,7 +236,9 @@ export const usePianoAudio = () => {
       active.gainNode.gain.setValueAtTime(active.gainNode.gain.value, now);
       active.gainNode.gain.linearRampToValueAtTime(0, now + releaseTime);
       active.oscillators.forEach(osc => {
-        try { osc.stop(now + releaseTime); } catch {}
+        try { osc.stop(now + releaseTime); } catch {
+          // Oscillator may already have stopped.
+        }
       });
     });
     activeMidiNotesRef.current.clear();
@@ -212,6 +246,8 @@ export const usePianoAudio = () => {
 
   return { 
     playNote, 
+    startNote,
+    stopNote,
     playChordNote, 
     playMidiNote, 
     playMidiChordNote, 
