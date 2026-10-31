@@ -57,8 +57,8 @@ const AppNavigation = () => {
             className="header-note clearing-return"
             href={
               import.meta.env.BASE_URL === "/"
-                ? "https://the-clearing.cbbsherpa.chatgpt.site/#learn"
-                : "/#learn"
+                ? "https://cbbsherpa.com/#play"
+                : "/#play"
             }
           >
             <i /> THE CLEARING ↗
