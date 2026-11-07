@@ -1,5 +1,6 @@
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import GlobalMidiControls from "./GlobalMidiControls";
+import ShelfPanel from "./ShelfPanel";
 const destinations = [
   { path: "/", label: "All tools" },
   { path: "/piano", label: "Piano" },
@@ -53,6 +54,7 @@ const AppNavigation = () => {
               ))}
             </select>
           </label>
+          <ShelfPanel />
           <a
             className="header-note clearing-return"
             href={

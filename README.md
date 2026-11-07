@@ -23,6 +23,8 @@ The app runs entirely in the browser. Chord favorites and chord progressions are
 - Track mixer controls for volume, pan, mute, solo, record arm, and instrument selection
 - MIDI export to `pattern.mid`
 - Audio capture export to `recording.webm`
+- The shelf: every recording is saved as a take in this browser (IndexedDB), opens from any room, and can be played, renamed, downloaded, or deleted
+- "What next?" suggestions in each room that carry the current selection or take into the next tool
 - Undo/redo for pattern edits with `Ctrl/Cmd+Z`, `Ctrl/Cmd+Y`, and `Ctrl/Cmd+Shift+Z`
 
 ## App Routes

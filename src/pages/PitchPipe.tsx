@@ -5,6 +5,7 @@ import AppNavigation from "../components/AppNavigation";
 import { SessionBar, useStopOnNavigation } from "../components/StudioChrome";
 import SoundScope from "../components/SoundScope";
 import OwnSoundRecorder from "../components/OwnSoundRecorder";
+import WhatNext from "../components/WhatNext";
 import { useOwnSound } from "../context/OwnSoundSession";
 import { selectionNoteLabels } from "../lib/musicNotation";
 import { useStudioSession } from "../context/StudioSession";
@@ -136,6 +137,7 @@ const PitchPipe = () => {
                 : "Same pitch. A different character."}
           </p>
         </div>
+        {!ownSound && <WhatNext />}
         {view === "waveform" && (
           <div
             className="sound-source-switch"

@@ -12,10 +12,12 @@ import {
 } from "../lib/toneRecording";
 import SoundScope from "./SoundScope";
 import ClipWaveform from "./ClipWaveform";
+import WhatNext from "./WhatNext";
+import { formatNote } from "../lib/noteSelection";
 
 export default function OwnSoundRecorder() {
-  const { clip, setClip } = useOwnSound();
-  const { stop: stopPreview } = useStudioSession();
+  const { clip, setClip, takes } = useOwnSound();
+  const { stop: stopPreview, selection } = useStudioSession();
   const [status, setStatus] = useState<CaptureStatus>("idle"),
     [error, setError] = useState("");
   const [captureAnalyser, setCaptureAnalyser] = useState<AnalyserNode | null>(
@@ -179,6 +181,11 @@ export default function OwnSoundRecorder() {
           <p>
             Sing or play a few notes. Record up to 30 seconds, then look closer.
           </p>
+          {selection.name && (
+            <p className="own-sound-target">
+              Singing along with <strong>{formatNote(selection.name)}</strong>
+            </p>
+          )}
         </div>
         <span
           className={`recording-status ${status === "recording" ? "recording" : ""}`}
@@ -231,7 +238,7 @@ export default function OwnSoundRecorder() {
         />
         {clip && (
           <>
-            <a href={url} download={`lumina-my-sound.${clip.extension}`}>
+            <a href={url} download={`${clip.name}.${clip.extension}`}>
               <Download size={15} /> Download recording
             </a>
             <button
@@ -242,7 +249,7 @@ export default function OwnSoundRecorder() {
                 setError("");
               }}
             >
-              Clear recording
+              Put it back on the shelf
             </button>
           </>
         )}
@@ -311,6 +318,8 @@ export default function OwnSoundRecorder() {
           <p>
             Record your voice or an instrument, or import a short audio file.
             Your waveform will stay here after you stop.
+            {takes.length > 0 &&
+              " Or open an earlier take from your shelf, top right."}
           </p>
         </div>
       )}
@@ -340,10 +349,20 @@ export default function OwnSoundRecorder() {
           />
         </div>
       )}
+      {status === "idle" && !importing && (
+        <WhatNext
+          scope={mode}
+          onAction={(action) => {
+            if (action === "show-spectrum") setMode("spectrum");
+            if (action === "show-waveform") setMode("waveform");
+            if (action === "play-target") audio.current?.pause();
+          }}
+        />
+      )}
       <p className="recording-footnote">
-        Recordings stay in this browser tab while you explore Lumina. Download a
-        take to keep it before closing or refreshing. Your microphone turns off
-        when you stop, leave this view, or press Escape.
+        Every take goes on your shelf (top right), where it stays in this
+        browser until you delete it. Nothing is uploaded. Your microphone turns
+        off when you stop, leave this view, or press Escape.
       </p>
     </section>
   );

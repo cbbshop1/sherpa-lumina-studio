@@ -14,6 +14,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import AppNavigation from "../components/AppNavigation";
+import WhatNext from "../components/WhatNext";
 import PianoKeyboard from "../components/PianoKeyboard";
 import ChordLibrary from "../components/ChordLibrary";
 import ChordProgressionBuilder from "../components/ChordProgressionBuilder";
@@ -203,6 +204,7 @@ const Index = () => {
               </div>
               <p>{active?.description}</p>
             </div>
+            <WhatNext />
             {pathname === "/piano" ? (
               <PianoKeyboard />
             ) : (
