@@ -10,6 +10,7 @@ const chord = {
 
 test("rooms are recognised from the address, including each Pitch & Tone view", () => {
   assert.equal(roomFromLocation("/chords/", ""), "chords");
+  assert.equal(roomFromLocation("/studio", "?take=x"), "studio");
   assert.equal(roomFromLocation("/pitch-pipe", ""), "pitch-pipe");
   assert.equal(roomFromLocation("/pitch-pipe", "?view=tone"), "tone");
   assert.equal(
@@ -51,11 +52,16 @@ test("no step ever sends you to the room you're already in", () => {
   }
 });
 
-test("after a take, the recorder offers sing-back and a closer look", () => {
-  const steps = nextSteps("own-sound", { ...chord, hasTake: true });
+test("after a take, the recorder offers sing-back, the four-track, and a closer look", () => {
+  const steps = nextSteps("own-sound", { ...chord, hasTake: true, takeId: "t 1" });
   assert.equal(steps[0].action, "play-target");
   assert.equal(steps[0].label, "Hear C major, then sing again");
-  assert.equal(steps[1].action, "show-spectrum");
+  assert.equal(steps[1].to, "/studio?take=t%201");
+  assert.equal(steps[2].action, "show-spectrum");
+  assert.equal(
+    nextSteps("own-sound", { ...chord, hasTake: true })[1].action,
+    "show-spectrum",
+  );
   const back = nextSteps("own-sound", {
     ...chord,
     hasTake: true,

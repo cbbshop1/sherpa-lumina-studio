@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Archive,
   AudioLines,
+  CassetteTape,
   Download,
   Pause,
   Pencil,
@@ -182,6 +183,15 @@ export default function ShelfPanel() {
                   <div className="shelf-actions">
                     <button onClick={() => void look(take)}>
                       <AudioLines size={13} /> See it
+                    </button>
+                    <button
+                      onClick={() => {
+                        stopPlayer();
+                        setOpen(false);
+                        navigate(`/studio?take=${encodeURIComponent(take.id)}`);
+                      }}
+                    >
+                      <CassetteTape size={13} /> To a track
                     </button>
                     <button onClick={() => setEditingId(take.id)}>
                       <Pencil size={13} /> Rename

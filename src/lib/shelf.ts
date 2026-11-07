@@ -53,11 +53,12 @@ export function sortTakes<T extends Pick<TakeMeta, "createdAt">>(takes: T[]) {
   return [...takes].sort((a, b) => b.createdAt - a.createdAt);
 }
 
-/** "Take 1", "Take 2"… never reusing a number that is still on the shelf. */
+/** "Take 1", "Take 2"… never reusing a number that is still on the shelf.
+ * Counts track takes like "Alto · Take 3" too, so numbers never clash. */
 export function nextTakeName(takes: Pick<TakeMeta, "name">[]) {
   let highest = 0;
   for (const { name } of takes) {
-    const match = /^Take (\d+)$/.exec(name);
+    const match = /(?:^|· )Take (\d+)$/.exec(name);
     if (match) highest = Math.max(highest, Number(match[1]));
   }
   return `Take ${highest + 1}`;

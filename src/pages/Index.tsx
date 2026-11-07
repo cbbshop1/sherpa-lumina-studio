@@ -80,7 +80,7 @@ const tools = [
     title: "The studio",
     label: "MAKE A LITTLE MUSIC",
     description:
-      "Layer a beat, sketch a melody, and turn an idea into a pattern.",
+      "A four-track tape deck for voices. Sing a part, then harmonize with yourself.",
     icon: SlidersHorizontal,
     color: "rose",
   },

@@ -39,6 +39,15 @@ type ShelfSession = {
   renameTake: (id: string, name: string) => void;
   deleteTake: (id: string) => void;
   takeBlob: (id: string) => Blob | null;
+  /** Puts audio on the shelf without opening it. Returns its id, or null if
+   * the shelf is full (the problem message says why). */
+  shelveTake: (
+    blob: Blob,
+    buffer: AudioBuffer,
+    options: { prefix?: string; target?: string },
+  ) => string | null;
+  /** Decodes a shelf take, for the four-track. */
+  takeAudio: (id: string) => Promise<AudioBuffer | null>;
 };
 
 const Context = createContext<ShelfSession | null>(null);
@@ -48,6 +57,8 @@ async function decode(blob: Blob) {
   const context = new OfflineAudioContext(1, 1, 44100);
   return context.decodeAudioData(await blob.arrayBuffer());
 }
+
+export { decode as decodeAudio };
 
 export function OwnSoundProvider({ children }: { children: ReactNode }) {
   const { selection } = useStudioSession();
@@ -181,6 +192,50 @@ export function OwnSoundProvider({ children }: { children: ReactNode }) {
     void store.current?.remove(id).catch(() => {});
   }, []);
 
+  const shelveTake = useCallback(
+    (
+      blob: Blob,
+      buffer: AudioBuffer,
+      options: { prefix?: string; target?: string },
+    ) => {
+      const current = latest.current.records;
+      const room = shelfRoomProblem(current, blob.size);
+      if (room) {
+        setProblem(room);
+        return null;
+      }
+      const name = nextTakeName(current);
+      const take: TakeRecord = {
+        id: newTakeId(),
+        name: options.prefix ? `${options.prefix} · ${name}` : name,
+        createdAt: Date.now(),
+        duration: buffer.duration,
+        channels: buffer.numberOfChannels,
+        source: "microphone",
+        target: options.target || undefined,
+        bytes: blob.size,
+        type: blob.type || "audio/wav",
+        blob,
+      };
+      // Update the ref now so two quick takes never get the same number.
+      latest.current = { ...latest.current, records: [take, ...current] };
+      setRecords((list) => [take, ...list]);
+      save(take);
+      return take.id;
+    },
+    [save],
+  );
+
+  const takeAudio = useCallback(async (id: string) => {
+    const take = latest.current.records.find((item) => item.id === id);
+    if (!take) return null;
+    try {
+      return await decode(take.blob);
+    } catch {
+      return null;
+    }
+  }, []);
+
   const takeBlob = useCallback(
     (id: string) =>
       latest.current.records.find((item) => item.id === id)?.blob ?? null,
@@ -204,6 +259,8 @@ export function OwnSoundProvider({ children }: { children: ReactNode }) {
         renameTake,
         deleteTake,
         takeBlob,
+        shelveTake,
+        takeAudio,
       }}
     >
       {children}

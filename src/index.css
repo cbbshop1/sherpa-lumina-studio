@@ -3278,3 +3278,587 @@ input[type="range"] {
     gap: 8px;
   }
 }
+
+/* ── The four-track: a late-90s portable cassette deck ───────────────── */
+.studio-tape-page .lumina-main {
+  padding-bottom: 60px;
+}
+.cassette-deck {
+  margin-bottom: 26px;
+}
+.deck-body {
+  position: relative;
+  border-radius: 26px;
+  padding: 18px 26px 18px;
+  color: #2b2f2e;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      #ffffff12 0 1px,
+      transparent 1px 3px
+    ),
+    linear-gradient(170deg, #e4e7e6 0%, #c3c8c7 45%, #a9afae 100%);
+  box-shadow:
+    inset 0 2px 0 #ffffffb0,
+    inset 0 -3px 0 #00000030,
+    inset 0 0 0 1px #ffffff40,
+    0 18px 40px #00000070,
+    0 2px 0 #00000060;
+}
+.deck-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.deck-badge {
+  font-family: "Lumina Display", "Poppins", sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 3px;
+  padding: 3px 12px;
+  border-radius: 6px;
+  color: #fff8ee;
+  background: linear-gradient(110deg, #e2685a, #eba25a);
+  box-shadow: inset 0 1px 0 #ffffff60, 0 1px 0 #00000030;
+}
+.deck-model {
+  font:
+    700 10px "Courier New",
+    monospace;
+  letter-spacing: 2.6px;
+  color: #3d4645;
+}
+.deck-stripe {
+  flex: 1;
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #e2685a, #eba25a 40%, #3f7fa6 40% 70%, transparent 70%);
+  opacity: 0.85;
+}
+.deck-face {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 1fr);
+  gap: 22px;
+}
+.cassette-window {
+  position: relative;
+  border-radius: 16px;
+  padding: 14px 18px;
+  background:
+    linear-gradient(160deg, #ffffff22 0%, transparent 35%),
+    #191c1c;
+  box-shadow:
+    inset 0 3px 10px #000000b0,
+    0 1px 0 #ffffffa0;
+  overflow: hidden;
+}
+.cassette-window::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 55%, #ffffff10 60%, transparent 70%);
+  pointer-events: none;
+}
+.cassette-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 6px 12px;
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(180deg, #f1e8d4, #e3d7bd);
+  color: #4a3c2a;
+  font:
+    700 10px "Courier New",
+    monospace;
+  letter-spacing: 1.8px;
+  border-top: 5px solid #e2685a;
+}
+.cassette-label em {
+  font-style: normal;
+  color: #7a6040;
+}
+.cassette-tape {
+  margin-top: 12px;
+  height: 118px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  border-radius: 60px;
+  background: #0e1010;
+  box-shadow: inset 0 0 0 2px #2a2e2d;
+  position: relative;
+}
+.tape-path {
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  bottom: 16px;
+  height: 4px;
+  border-radius: 2px;
+  background: #4a3326;
+}
+.reel {
+  --wound: 0.5;
+  position: relative;
+  z-index: 1;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #e9ece9;
+  box-shadow: 0 0 0 calc(3px + var(--wound) * 18px) #4a3326,
+    0 0 0 calc(4px + var(--wound) * 18px) #2c1e16;
+  transition: box-shadow 0.4s linear;
+}
+.reel i {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, #191c1c 0 7px, transparent 7.5px),
+    repeating-conic-gradient(#191c1c 0 14deg, #e9ece9 14deg 60deg);
+}
+.cassette-window.moving .reel i {
+  animation: reel-spin 1.6s linear infinite;
+}
+@keyframes reel-spin {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cassette-window.moving .reel i {
+    animation: none;
+  }
+}
+.deck-panel {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+.deck-lcd {
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #b5c0a3, #9eab8b);
+  color: #1d2a1b;
+  box-shadow:
+    inset 0 2px 6px #00000060,
+    0 0 0 3px #3a3f3e,
+    0 1px 0 4px #ffffff70;
+  font-family: "Courier New", monospace;
+  font-weight: 700;
+}
+.lcd-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+}
+.lcd-rec {
+  opacity: 0.18;
+}
+.lcd-rec.on {
+  opacity: 1;
+  color: #9a1d14;
+  animation: lcd-blink 1s steps(2) infinite;
+}
+@keyframes lcd-blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+.lcd-counter {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 44px;
+  line-height: 1.05;
+  letter-spacing: 4px;
+  text-shadow: 2px 2px 0 #00000014;
+}
+.lcd-counter small {
+  font-size: 10px;
+  letter-spacing: 2px;
+}
+.deck-transport {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.deck-transport button {
+  height: 50px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: #2b2f2e;
+  background: linear-gradient(180deg, #f3f5f4, #c8cdcc);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 3px 0 #7e8584,
+    0 5px 8px #00000040;
+  transition:
+    transform 0.06s,
+    box-shadow 0.06s;
+}
+.deck-transport button:active:not(:disabled),
+.deck-transport button.down {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 2px 4px #00000040,
+    0 0 0 #7e8584;
+  background: linear-gradient(180deg, #c8cdcc, #dde1e0);
+}
+.deck-transport button:disabled:not(.down) {
+  opacity: 0.45;
+}
+.deck-transport .deck-rec {
+  color: #c4372b;
+}
+.deck-transport .deck-rec.down {
+  color: #fff;
+  background: linear-gradient(180deg, #d34a3c, #a52c22);
+}
+.deck-armed {
+  font-size: 12px;
+  color: #3d4645;
+}
+.deck-armed b {
+  color: #b2392d;
+}
+.deck-switches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #00000020;
+  font:
+    700 10px "Courier New",
+    monospace;
+  letter-spacing: 1.6px;
+}
+.deck-switches label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.deck-switches input,
+.deck-switches select {
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid #00000035;
+  background: #f3f5f4;
+  color: #2b2f2e;
+  font: inherit;
+}
+.deck-tempo input {
+  width: 58px;
+  text-align: center;
+}
+.deck-tempo button {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #f3f5f4, #c8cdcc);
+  box-shadow: 0 2px 0 #7e8584;
+  font-size: 15px;
+  line-height: 1;
+}
+.deck-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  background: #00000014;
+  box-shadow: inset 0 1px 3px #00000035;
+}
+.deck-switch i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6d7372;
+}
+.deck-switch.on i {
+  background: #ef8f4f;
+  box-shadow: 0 0 6px #ef8f4f;
+}
+.deck-phones {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-family: inherit;
+  letter-spacing: 0.4px;
+  font-weight: 400;
+  font-size: 11px;
+  font-family: system-ui, sans-serif;
+  color: #3d4645;
+}
+
+.tape-incoming {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border: 1px solid #e6b98b70;
+  border-radius: 12px;
+  background: #e6b98b0f;
+  font-size: 13px;
+}
+.tape-incoming span {
+  margin-right: 6px;
+}
+.tape-incoming b {
+  color: #f1c79a;
+}
+.tape-incoming button {
+  padding: 6px 11px;
+  border-radius: 8px;
+  background: #e6b98b;
+  color: #211e16;
+  font-size: 12px;
+}
+.tape-incoming button.quiet {
+  background: none;
+  color: #aeb8ae;
+  border: 1px solid #a7b39140;
+}
+.tape-message {
+  margin: -10px 0 16px;
+}
+
+.tape-lanes {
+  display: grid;
+  gap: 10px;
+}
+.tape-ruler {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  /* Line the bar numbers up with the tape inside each lane. */
+  margin: 0 13px;
+  font:
+    9px "Courier New",
+    monospace;
+  color: #9da89c;
+}
+.tape-lane {
+  border: 1px solid #ffffff12;
+  border-radius: 14px;
+  background: #ffffff05;
+  padding: 10px 12px 12px;
+}
+.tape-lane.armed {
+  border-color: #d34a3c90;
+  background: #d34a3c0c;
+}
+.tape-lane.silent .lane-wave {
+  opacity: 0.4;
+}
+.lane-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-bottom: 8px;
+}
+.lane-number {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: #ffffff10;
+  font:
+    700 12px "Courier New",
+    monospace;
+  color: #f1c79a;
+}
+.lane-name {
+  display: grid;
+  min-width: 120px;
+}
+.lane-name strong {
+  font-size: 14px;
+  color: #f2e9d8;
+}
+.lane-name small {
+  font-size: 11px;
+  color: #9da89c;
+}
+.lane-buttons {
+  display: flex;
+  gap: 5px;
+}
+.lane-arm,
+.lane-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 7px;
+  border: 1px solid #a7b39140;
+  font:
+    700 10px "Courier New",
+    monospace;
+  letter-spacing: 1px;
+  color: #d9ddca;
+}
+.lane-arm {
+  color: #e98a7e;
+}
+.lane-arm.on {
+  color: #fff;
+  background: #b2392d;
+  border-color: #d34a3c;
+}
+.lane-toggle.on {
+  color: #211e16;
+  background: #a5ba9f;
+  border-color: #a5ba9f;
+}
+.lane-toggle.solo.on {
+  background: #e6b98b;
+  border-color: #e6b98b;
+}
+.lane-fader,
+.lane-fx label,
+.lane-drawer label {
+  display: grid;
+  gap: 3px;
+  font:
+    9px "Courier New",
+    monospace;
+  letter-spacing: 1.2px;
+  color: #9da89c;
+}
+.lane-fader input,
+.lane-fx input,
+.lane-drawer input[type="range"] {
+  width: 110px;
+  accent-color: #e6b98b;
+}
+.lane-fx {
+  display: flex;
+  gap: 14px;
+}
+.lane-fx input:disabled {
+  opacity: 0.35;
+}
+.lane-more {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #aeb8ae;
+}
+.lane-more.open svg {
+  transform: rotate(180deg);
+}
+.lane-wave {
+  position: relative;
+  border-radius: 9px;
+  background: #0c110e;
+  box-shadow: inset 0 1px 4px #00000080;
+  cursor: pointer;
+  overflow: hidden;
+}
+.lane-wave:focus-visible {
+  outline: 2px solid #e6b98b;
+}
+.lane-wave canvas {
+  display: block;
+  width: 100%;
+}
+.lane-wave.is-recording {
+  box-shadow:
+    inset 0 0 0 1px #d34a3c,
+    inset 0 1px 4px #00000080;
+}
+.lane-blank {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font:
+    9px "Courier New",
+    monospace;
+  letter-spacing: 3px;
+  color: #ffffff30;
+  pointer-events: none;
+}
+.lane-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: #ef8f4f;
+  box-shadow: 0 0 8px #ef8f4f;
+  pointer-events: none;
+}
+.lane-drawer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px 20px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #ffffff0d;
+}
+.lane-drawer input[type="text"],
+.lane-drawer select {
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid #a7b39140;
+  background: #0c110e;
+  color: #f2e9d8;
+  font-size: 12px;
+  font-family: system-ui, sans-serif;
+  letter-spacing: 0;
+}
+.lane-drawer button {
+  padding: 6px 10px;
+  border-radius: 7px;
+  border: 1px solid #a7b39140;
+  font-size: 11px;
+  color: #d9ddca;
+}
+.lane-drawer button:disabled {
+  opacity: 0.4;
+}
+.lane-drawer p {
+  flex-basis: 100%;
+  font-size: 11px;
+  color: #9da89c;
+}
+.tape-tips {
+  margin-top: 22px;
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #aeb8ae;
+}
+.tape-tips b {
+  color: #f2e9d8;
+}
+@media (max-width: 900px) {
+  .deck-face {
+    grid-template-columns: 1fr;
+  }
+  .deck-body {
+    padding: 14px;
+  }
+  .deck-phones {
+    margin-left: 0;
+  }
+}

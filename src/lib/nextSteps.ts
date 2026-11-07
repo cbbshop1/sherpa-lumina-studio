@@ -9,7 +9,8 @@ export type Room =
   | "pitch-pipe"
   | "see-the-sound"
   | "tone"
-  | "own-sound";
+  | "own-sound"
+  | "studio";
 
 /** Things the strip does on the spot instead of moving to another room. */
 export type StepAction = "play-target" | "show-spectrum" | "show-waveform";
@@ -27,6 +28,8 @@ export type StepState = {
   selection: string;
   selectionKind: "chord" | "note" | "scale";
   hasTake: boolean;
+  /** The open take's shelf id, so it can be carried to the four-track. */
+  takeId?: string | null;
   /** Own-sound view only: which picture of the take is showing. */
   scope?: "waveform" | "spectrum";
 };
@@ -46,6 +49,7 @@ export function roomFromLocation(pathname: string, search: string): Room {
         : "see-the-sound";
     return "pitch-pipe";
   }
+  if (path === "/studio") return "studio";
   if (path === "/chords" || path === "/scales" || path === "/progressions")
     return path.slice(1) as Room;
   return "piano";
@@ -66,6 +70,13 @@ export function nextSteps(room: Room, state: StepState): NextStep[] {
           ? "Play the target, then record a new take to compare on your shelf."
           : "Get the sound in your ear before you record.",
         action: "play-target",
+      });
+    if (state.hasTake && state.takeId)
+      steps.push({
+        id: "tape",
+        label: "Put it on a tape track",
+        hint: "Make it one voice of a four-part song.",
+        to: `/studio?take=${encodeURIComponent(state.takeId)}`,
       });
     if (state.hasTake)
       steps.push(

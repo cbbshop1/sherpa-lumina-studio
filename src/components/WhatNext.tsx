@@ -19,12 +19,13 @@ type Props = {
 export default function WhatNext({ scope, onAction, className = "" }: Props) {
   const { pathname, search } = useLocation();
   const { selection, play } = useStudioSession();
-  const { clip } = useShelf();
+  const { clip, activeId } = useShelf();
   const room = roomFromLocation(pathname, search);
   const steps = nextSteps(room, {
     selection: formatNote(selection.name),
     selectionKind: selection.kind,
     hasTake: !!clip,
+    takeId: activeId,
     scope,
   });
   if (!steps.length) return null;

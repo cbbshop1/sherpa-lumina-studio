@@ -2,7 +2,7 @@
 
 Lumina has six focused workspaces, a warm studio theme, and a shared musical selection. Choosing a chord or scale previews its notes before playback. The piano now uses the shared bottom player, including Play, Stop, and volume, with a compact instrument menu. The sequencer retains its own transport.
 
-Sherpa Lumina Studio is a browser-based music theory and composition workspace. It combines an interactive learning surface for chords and scales, a pitch-pipe utility for ear training, and a lightweight multi-track sequencer built on the Web Audio and Web MIDI APIs.
+Sherpa Lumina Studio is a browser-based music theory and composition workspace. It combines an interactive learning surface for chords and scales, a pitch-pipe utility for ear training, and a four-track vocal tape deck built on the Web Audio and Web MIDI APIs.
 
 The app runs entirely in the browser. Chord favorites and chord progressions are saved in `localStorage`; generated MIDI and audio captures are downloaded from the client.
 
@@ -16,16 +16,9 @@ The app runs entirely in the browser. Chord favorites and chord progressions are
 - Scale explorer for major, minor, pentatonic, blues, and Dorian patterns
 - Circular pitch pipe with octave and volume controls
 - Pitch-pipe waveform visualizer and advanced tone generator
-- Five-track studio sequencer with drums, bass, keys, pad, and lead tracks
-- Drum grid with built-in samples and per-row sample upload
-- Piano-roll editor for melodic tracks
-- Transport controls for play, stop, record, BPM, and beat position
-- Track mixer controls for volume, pan, mute, solo, record arm, and instrument selection
-- MIDI export to `pattern.mid`
-- Audio capture export to `recording.webm`
+- Four-track vocal tape deck with overdubbing, reverb, and echo
 - The shelf: every recording is saved as a take in this browser (IndexedDB), opens from any room, and can be played, renamed, downloaded, or deleted
 - "What next?" suggestions in each room that carry the current selection or take into the next tool
-- Undo/redo for pattern edits with `Ctrl/Cmd+Z`, `Ctrl/Cmd+Y`, and `Ctrl/Cmd+Shift+Z`
 
 ## App Routes
 
@@ -69,25 +62,18 @@ The audio context is initialized after the first user interaction, which is requ
 
 ### `/studio`
 
-The studio route is the composition workspace. It provides:
+The studio is a four-track tape deck for voices, styled after a late-90s portable cassette player. It provides:
 
-- A look-ahead Web Audio scheduler driven by the transport
-- A 1, 2, or 4 bar pattern length
-- A 16-step drum grid for the drums track
-- A click-to-toggle piano roll for melodic tracks
-- Five default tracks:
-  - Drums
-  - Bass
-  - Keys
-  - Pad
-  - Lead
-- Track controls for instrument, volume, pan, mute, solo, and record arm
-- MIDI keyboard recording into the armed track, quantized to 16th notes
-- MIDI pitch bend and sustain routing to the armed track
-- MIDI file export
-- WebM audio capture from the master bus
+- Four tape tracks (Soprano, Alto, Tenor, Bass by default, renamable)
+- A song of 8, 16, or 32 bars in 4/4, at 60 to 160 BPM
+- A click track and a one-bar count-in before recording
+- Overdub recording on the armed track while the other tracks play, captured with an AudioWorklet so takes line up with the tape, plus a per-track timing nudge
+- Level, pan, mute, and solo for each track
+- Reverb and echo printed into a copy of the take, so the waveform visibly changes; the untouched take shows faintly behind it and effects can always be turned back to zero
+- Every take saved to the shelf as "Track · Take N"; the arrangement is saved in `localStorage` under `lumina-four-track`
+- Loading any shelf take onto a track, and "To a track" from the shelf or the recorder
 
-Recording replaces the armed track's current pattern and can be undone.
+Recording over a track or clearing it never deletes a take from the shelf.
 
 ## Browser Requirements
 
@@ -105,11 +91,9 @@ Chrome and Edge provide the best MIDI support. Browsers without Web MIDI can sti
 - React
 - TypeScript
 - React Router
-- Zustand
 - Tailwind CSS
 - shadcn/ui and Radix UI primitives
 - lucide-react icons
-- `@tonejs/midi` for MIDI file generation
 
 ## Local Development
 

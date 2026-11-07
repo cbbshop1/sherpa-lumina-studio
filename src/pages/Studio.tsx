@@ -1,493 +1,437 @@
-import { useEffect, useRef, useCallback, useState } from "react";
-import { Mic2 } from "lucide-react";
-import { Slider } from "@/components/ui/slider";
-import { cn } from "@/lib/utils";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import AppNavigation from "@/components/AppNavigation";
-import TransportBar from "@/components/TransportBar";
-import SequencerView from "@/components/sequencer/SequencerView";
-import { AudioEngine } from "@/engine/AudioEngine";
-import { Transport } from "@/engine/Transport";
-import { Mixer } from "@/engine/Mixer";
-import { Scheduler } from "@/engine/Scheduler";
-import type { ScheduledEvent } from "@/engine/Scheduler";
-import { TrackManager } from "@/engine/tracks/TrackManager";
-import { AudioExporter } from "@/engine/AudioExporter";
-import { useMidiSession } from "@/context/MidiSession";
-import type { InstrumentBackend } from "@/engine/instruments/InstrumentBackend";
-import { useStudioStore, registerEngine } from "@/store/studioStore";
-import { INSTRUMENTS, InstrumentType } from "@/utils/instrumentSynthesis";
-import { exportMidi } from "@/utils/exportMidi";
+import CassetteDeck, { type DeckMode } from "@/components/tape/CassetteDeck";
+import TapeLane from "@/components/tape/TapeLane";
+import { useShelf } from "@/context/OwnSoundSession";
+import { useStudioSession } from "@/context/StudioSession";
+import { formatNote } from "@/lib/noteSelection";
+import { encodeWav, recordingError } from "@/lib/toneRecording";
+import {
+  STORAGE_KEY,
+  audible,
+  readSong,
+  songSeconds,
+  type SongSettings,
+  type TrackSettings,
+} from "@/lib/fourTrack";
+import { TapeDeck, renderEffects } from "@/lib/tapeDeck";
 
-// ─── Recording snap resolution (16th note) ───────────────────────────────────
+type Buffers = (AudioBuffer | null)[];
+const EMPTY: Buffers = [null, null, null, null];
 
-const SNAP_BEATS = 0.25;
+function loadSong() {
+  try {
+    return readSong(localStorage.getItem(STORAGE_KEY));
+  } catch {
+    return readSong(null);
+  }
+}
 
-// ─── Instrument dropdown options ─────────────────────────────────────────────
+export default function Studio() {
+  const shelf = useShelf();
+  const { selection, stop: stopPreview } = useStudioSession();
+  const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [song, setSong] = useState<SongSettings>(loadSong);
+  const [originals, setOriginals] = useState<Buffers>(EMPTY);
+  const [processed, setProcessed] = useState<Buffers>(EMPTY);
+  const [mode, setMode] = useState<DeckMode>("stopped");
+  const [position, setPosition] = useState(0);
+  const [message, setMessage] = useState("");
+  const deck = useRef<TapeDeck | null>(null);
+  const latest = useRef({ song, processed, mode });
+  latest.current = { song, processed, mode };
+  const songSec = songSeconds(song);
+  const heard = useMemo(() => audible(song.tracks), [song.tracks]);
+  const incomingTake = params.get("take");
+  const incoming = shelf.takes.find((take) => take.id === incomingTake);
 
-const INSTRUMENT_OPTIONS = Object.entries(INSTRUMENTS) as [
-  InstrumentType,
-  { name: string; icon: string },
-][];
+  const getDeck = () => (deck.current ??= new TapeDeck());
 
-// ─── Studio page ─────────────────────────────────────────────────────────────
-
-const Studio = () => {
-  const { registerTarget, panic } = useMidiSession();
-  const [engineReady, setEngineReady] = useState(false);
-  const owners = useRef(
-    new Map<
-      number,
-      { backend: InstrumentBackend; ticket: object; trackId: number }
-    >(),
-  );
-  const previewTimers = useRef(new Set<ReturnType<typeof setTimeout>>());
-  const generation = useRef(0);
-  const stopLive = useCallback(() => {
-    generation.current++;
-    previewTimers.current.forEach(clearTimeout);
-    previewTimers.current.clear();
-    owners.current.clear();
-    recordingNotesRef.current.clear();
-    trackManagerRef.current?.stopAll();
-  }, []);
-  const previewNote = useCallback(async (trackId: number, note: number) => {
-    const ae = engineRef.current,
-      tm = trackManagerRef.current;
-    if (!ae || !tm) return;
-    const ticket = generation.current;
-    await ae.resume();
-    if (ticket !== generation.current) return;
-    const backend = tm.tracks[trackId]?.backend;
-    if (!backend) return;
-    backend.noteOn(note, 100, ae.currentTime);
-    const timer = setTimeout(() => {
-      backend.noteOff(note, ae.currentTime);
-      previewTimers.current.delete(timer);
-    }, 350);
-    previewTimers.current.add(timer);
-  }, []);
-  // Engine refs — created once, stable across re-renders
-  const engineRef = useRef<AudioEngine | null>(null);
-  const transportRef = useRef<Transport | null>(null);
-  const mixerRef = useRef<Mixer | null>(null);
-  const trackManagerRef = useRef<TrackManager | null>(null);
-  const schedulerRef = useRef<Scheduler | null>(null);
-  const audioExporterRef = useRef<AudioExporter | null>(null);
-
-  // Notes currently held down during recording: midiNote → { startBeat, velocity }
-  const recordingNotesRef = useRef<
-    Map<number, { startBeat: number; velocity: number; trackId: number }>
-  >(new Map());
-
-  const {
-    tracks,
-    playState,
-    setTrackVolume,
-    setTrackPan,
-    setTrackMute,
-    setTrackSolo,
-    setTrackArm,
-    setTrackInstrument,
-  } = useStudioStore();
-
-  // ── 1. Initialise audio engine on mount ───────────────────────────────────
+  // Save the arrangement (not the audio, which lives on the shelf).
   useEffect(() => {
-    const ae = AudioEngine.getInstance();
-    const transport = new Transport(ae.audioContext);
-    const mixer = new Mixer(ae.audioContext, ae.masterGain, 5);
-    const tm = new TrackManager(ae, mixer);
-    const scheduler = new Scheduler(
-      (trackId, midiNote, velocity, audioTime) => {
-        ae.resume();
-        tm.noteOn(trackId, midiNote, velocity, audioTime);
-      },
-      (trackId, midiNote, audioTime) => {
-        tm.noteOff(trackId, midiNote, audioTime);
-      },
-    );
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(song));
+    } catch {
+      // Private windows may refuse; the song still works for this visit.
+    }
+  }, [song]);
 
-    engineRef.current = ae;
-    transportRef.current = transport;
-    mixerRef.current = mixer;
-    trackManagerRef.current = tm;
-    schedulerRef.current = scheduler;
-    audioExporterRef.current = new AudioExporter(ae);
-
-    const saved = useStudioStore.getState();
-    transport.setBpm(saved.bpm);
-    ae.setMasterVolume(saved.masterVolume);
-    saved.tracks.forEach((track) => {
-      tm.setInstrument(track.id, track.instrumentType);
-      mixer.update(track.id, {
-        volume: track.volume,
-        pan: track.pan,
-        mute: track.mute,
-        solo: track.solo,
-      });
-      if (track.recordArm) tm.armTrack(track.id);
-    });
-    registerEngine({ transport, mixer, trackManager: tm });
-    useStudioStore.setState({ playState: "stopped" });
-    setEngineReady(true);
-
-    return () => {
-      stopLive();
-      registerEngine({
-        transport: undefined,
-        mixer: undefined,
-        trackManager: undefined,
-      });
-      useStudioStore.setState({ playState: "stopped" });
-      transport.dispose();
-      scheduler.dispose();
-      tm.tracks.forEach((t) => t.backend.dispose());
-    };
-  }, []);
-
-  // ── 2. Wire Transport → Scheduler (separate effect, runs after engine init) ─
-  useEffect(() => {
-    const transport = transportRef.current;
-    const scheduler = schedulerRef.current;
-    const ae = engineRef.current;
-    if (!transport || !scheduler || !ae) return;
-
-    const unsub = transport.subscribe((changes) => {
-      // Sync playState changes to store
-      if (changes.playState !== undefined) {
-        useStudioStore.setState({ playState: changes.playState });
-        if (changes.playState === "stopped") {
-          scheduler.reset();
-          panic();
-          return;
-        }
-      }
-
-      // Drive look-ahead scheduler on every tick while playing/recording
-      if (
-        changes.currentBeat !== undefined &&
-        transport.playState !== "stopped"
-      ) {
-        const state = useStudioStore.getState();
-        const patternLengthBeats = state.patternLengthBars * 4;
-
-        // Flatten all track patterns into ScheduledEvents
-        const events: ScheduledEvent[] = [];
-        for (let tid = 0; tid < 5; tid++) {
-          const trackNotes = state.patterns[tid] ?? [];
-          for (const note of trackNotes) {
-            events.push({
-              id: `${tid}-${note.id}`,
-              trackId: tid,
-              midiNote: note.midiNote,
-              velocity: note.velocity,
-              startBeat: note.startBeat,
-              durationBeats: note.durationBeats,
-            });
-          }
-        }
-
-        scheduler.setEvents(events);
-        scheduler.tick(
-          ae.currentTime + transport.SCHEDULE_AHEAD_TIME,
-          transport.secondsPerBeat,
-          transport.startAudioTime,
-          transport.startBeat,
-          patternLengthBeats,
-        );
-      }
-    });
-
-    return unsub;
-  }, []); // refs are stable, safe to use with empty dep array
-
-  // ── 3. MIDI → armed track routing ─────────────────────────────────────────
-
-  const handleNoteOn = useCallback(
-    async (midiNote: number, velocity: number) => {
-      const ae = engineRef.current;
-      const tm = trackManagerRef.current;
-      const transport = transportRef.current;
-      if (!ae || !tm || !transport) return;
-
-      const armed = tm.getArmedTrack();
-      if (!armed) return;
-      const ticket = {};
-      owners.current.set(midiNote, {
-        backend: armed.backend,
-        ticket,
-        trackId: armed.id,
-      });
-      await ae.resume();
-      if (owners.current.get(midiNote)?.ticket !== ticket) return;
-      armed.backend.noteOn(midiNote, velocity, ae.currentTime);
-
-      // Capture start beat when recording is active
-      if (transport.playState === "recording") {
-        const elapsed = ae.currentTime - transport.startAudioTime;
-        const rawBeat =
-          transport.startBeat + elapsed / transport.secondsPerBeat;
-        const patternBeats = useStudioStore.getState().patternLengthBars * 4;
-        const patBeat =
-          ((rawBeat % patternBeats) + patternBeats) % patternBeats;
-        const startBeat = Math.round(patBeat / SNAP_BEATS) * SNAP_BEATS;
-        recordingNotesRef.current.set(midiNote, {
-          startBeat,
-          velocity,
-          trackId: armed.id,
-        });
-      }
-    },
+  const updateTrack = useCallback(
+    (index: number, patch: Partial<TrackSettings>) =>
+      setSong((current) => ({
+        ...current,
+        tracks: current.tracks.map((track, i) =>
+          i === index ? { ...track, ...patch } : track,
+        ),
+      })),
     [],
   );
 
-  const handleNoteOff = useCallback((midiNote: number) => {
-    const ae = engineRef.current;
-    const tm = trackManagerRef.current;
-    const transport = transportRef.current;
-    if (!ae || !tm || !transport) return;
-
-    owners.current.get(midiNote)?.backend.noteOff(midiNote, ae.currentTime);
-    owners.current.delete(midiNote);
-
-    // Complete the recorded note
-    const pending = recordingNotesRef.current.get(midiNote);
-    recordingNotesRef.current.delete(midiNote);
-    if (!pending || transport.playState !== "recording") return;
-
-    const elapsed = ae.currentTime - transport.startAudioTime;
-    const rawBeat = transport.startBeat + elapsed / transport.secondsPerBeat;
-    const state = useStudioStore.getState();
-    const patternBeats = state.patternLengthBars * 4;
-    const patBeat = ((rawBeat % patternBeats) + patternBeats) % patternBeats;
-
-    let durationBeats = patBeat - pending.startBeat;
-    if (durationBeats <= 0) durationBeats += patternBeats; // note crossed loop boundary
-    const maxDuration = patternBeats - pending.startBeat;
-    durationBeats = Math.max(
-      SNAP_BEATS,
-      Math.min(
-        maxDuration,
-        Math.round(durationBeats / SNAP_BEATS) * SNAP_BEATS,
-      ),
-    );
-
-    const armedTrackId = pending.trackId;
-    if (armedTrackId === undefined) return;
-
-    state.addNote(armedTrackId, {
-      id: `rec-${armedTrackId}-${midiNote}-${pending.startBeat.toFixed(3)}-${Date.now()}`,
-      midiNote,
-      velocity: pending.velocity,
-      startBeat: pending.startBeat,
-      durationBeats,
-    });
-  }, []);
-
-  // ── 4. Undo / Redo keyboard shortcuts ────────────────────────────────────
-
+  // Bring each track's take back from the shelf when the page opens.
+  const loaded = useRef(false);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLElement &&
-        (e.target.isContentEditable ||
-          e.target.closest("input,select,textarea"))
-      )
+    if (shelf.status !== "ready" || loaded.current) return;
+    loaded.current = true;
+    const ids = latest.current.song.tracks.map((track) => track.takeId);
+    void Promise.all(ids.map((id) => (id ? shelf.takeAudio(id) : null))).then(
+      (buffers) => {
+        setOriginals(buffers);
+        const missing = ids.filter((id, i) => id && !buffers[i]).length;
+        if (missing) {
+          setSong((current) => ({
+            ...current,
+            tracks: current.tracks.map((track, i) =>
+              track.takeId && !buffers[i]
+                ? { ...track, takeId: null, startSec: 0, nudgeMs: 0 }
+                : track,
+            ),
+          }));
+          setMessage(
+            missing === 1
+              ? "One track's take was deleted from your shelf, so that track is blank again."
+              : `${missing} tracks' takes were deleted from your shelf, so those tracks are blank again.`,
+          );
+        }
+      },
+    );
+  }, [shelf.status, shelf]);
+
+  // Print reverb and echo into each track's waveform, a moment after the
+  // knobs stop moving.
+  const fxKey = song.tracks
+    .map((track) => `${track.reverb}/${track.echo}/${track.startSec}`)
+    .concat(String(song.bars))
+    .join("|");
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      const { song: current } = latest.current;
+      void Promise.all(
+        originals.map((buffer, i) =>
+          buffer
+            ? renderEffects(
+                buffer,
+                current.tracks[i].reverb,
+                current.tracks[i].echo,
+                current.bpm,
+                songSeconds(current) - current.tracks[i].startSec,
+              ).catch(() => buffer)
+            : null,
+        ),
+      ).then((next) => {
+        if (!cancelled) setProcessed(next);
+      });
+    }, 180);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [originals, fxKey, song.bpm]);
+
+  const deckTracks = () =>
+    latest.current.song.tracks.map((track, i) => ({
+      buffer: latest.current.processed[i],
+      startSec: track.startSec,
+      nudgeMs: track.nudgeMs,
+      volume: track.volume,
+      pan: track.pan,
+      audible: audible(latest.current.song.tracks)[i],
+    }));
+
+  const finishTake = useCallback(
+    (captured: ReturnType<TapeDeck["stop"]>) => {
+      const { song: current } = latest.current;
+      const index = current.armed;
+      if (index === null) return;
+      if (!captured) {
+        setMessage("That take was too short to keep. Try again, and sing a little longer.");
         return;
-      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
-        e.preventDefault();
-        useStudioStore.getState().undo();
       }
+      const track = current.tracks[index];
+      const blob = new Blob([encodeWav(captured.buffer)], { type: "audio/wav" });
+      const id = shelf.shelveTake(blob, captured.buffer, {
+        prefix: track.name,
+        target: selection.name ? formatNote(selection.name) : undefined,
+      });
+      if (!id) {
+        setMessage(
+          "Your shelf is full, so this take couldn't be kept. Delete a few old takes from the shelf, then record again.",
+        );
+        return;
+      }
+      setOriginals((list) =>
+        list.map((buffer, i) => (i === index ? captured.buffer : buffer)),
+      );
+      updateTrack(index, {
+        takeId: id,
+        startSec: captured.startSec,
+        nudgeMs: 0,
+      });
+      setMessage("");
+    },
+    [shelf, selection.name, updateTrack],
+  );
+
+  const stop = useCallback(() => {
+    const active = deck.current;
+    if (!active) return;
+    const wasRecording = active.isRecording;
+    const at = active.position();
+    const captured = active.stop();
+    setMode("stopped");
+    if (at !== null) setPosition(Math.max(0, Math.min(at, songSeconds(latest.current.song))));
+    if (wasRecording) finishTake(captured);
+  }, [finishTake]);
+
+  // Keep the counter, reels and playhead moving, and stop at the end of tape.
+  useEffect(() => {
+    if (mode === "stopped" || mode === "arming") return;
+    let frame = 0;
+    const tick = () => {
+      const active = deck.current;
+      const at = active?.position();
+      if (active && at !== null && at !== undefined) {
+        if (active.countingIn()) setMode((m) => (m === "recording" ? "count-in" : m));
+        else setMode((m) => (m === "count-in" ? "recording" : m));
+        setPosition(Math.max(0, at));
+        if (at >= songSeconds(latest.current.song)) {
+          stop();
+          setPosition(songSeconds(latest.current.song));
+          return;
+        }
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [mode, stop]);
+
+  // Escape, hiding the page, or leaving the Studio all stop the tape.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") stop();
       if (
-        (e.ctrlKey || e.metaKey) &&
-        (e.key === "y" || (e.key === "z" && e.shiftKey))
+        event.key === " " &&
+        !(event.target instanceof HTMLInputElement) &&
+        !(event.target instanceof HTMLSelectElement) &&
+        !(event.target instanceof HTMLButtonElement)
       ) {
-        e.preventDefault();
-        useStudioStore.getState().redo();
+        event.preventDefault();
+        if (latest.current.mode === "stopped") void play();
+        else stop();
       }
     };
+    const onHide = () => document.hidden && stop();
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("visibilitychange", onHide);
+    };
+    // play is stable enough for a key handler; it reads everything from refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stop]);
   useEffect(
-    () =>
-      registerTarget({
-        noteOn: handleNoteOn,
-        noteOff: handleNoteOff,
-        parameter: (name, value) => {
-          trackManagerRef.current?.tracks.forEach((track) =>
-            track.backend.setParameter(name, value),
-          );
-        },
-        stop: stopLive,
-      }),
-    [registerTarget, handleNoteOn, handleNoteOff, stopLive],
+    () => () => {
+      const active = deck.current;
+      if (active?.isRecording) finishTake(active.stop());
+      active?.dispose();
+    },
+    // Only on leaving the page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   );
 
-  if (!engineReady || !transportRef.current)
-    return (
-      <div className="studio-page">
-        <AppNavigation />
-        <p>Opening studio…</p>
-      </div>
-    );
+  const startAt = () => (position >= songSec - 0.05 ? 0 : position);
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  async function play() {
+    stopPreview();
+    setMessage("");
+    const from = startAt();
+    setPosition(from);
+    try {
+      await getDeck().play({
+        tracks: deckTracks(),
+        fromSec: from,
+        toSec: songSeconds(latest.current.song),
+        bpm: latest.current.song.bpm,
+        click: latest.current.song.click,
+      });
+      setMode("playing");
+    } catch {
+      setMessage("The tape couldn't start. Try pressing Play again.");
+    }
+  }
+
+  async function record() {
+    const { song: current } = latest.current;
+    if (current.armed === null) return;
+    stopPreview();
+    setMessage("");
+    const from = startAt();
+    setPosition(from);
+    setMode("arming");
+    try {
+      await getDeck().record({
+        tracks: deckTracks().map((track, i) =>
+          // The track being recorded is silent so you don't hear the old take.
+          i === current.armed ? { ...track, audible: false } : track,
+        ),
+        fromSec: from,
+        songLengthSec: songSeconds(current),
+        bpm: current.bpm,
+        click: current.click,
+        countIn: current.countIn,
+      });
+      setMode(current.countIn ? "count-in" : "recording");
+    } catch (error) {
+      deck.current?.stop();
+      setMode("stopped");
+      setMessage(recordingError(error).replace("Record my sound", "REC"));
+    }
+  }
+
+  const loadTake = async (index: number, takeId: string) => {
+    const buffer = await shelf.takeAudio(takeId);
+    if (!buffer) {
+      setMessage("That take couldn't be opened in this browser.");
+      return;
+    }
+    setOriginals((list) => list.map((b, i) => (i === index ? buffer : b)));
+    updateTrack(index, { takeId, startSec: 0, nudgeMs: 0 });
+    setMessage("");
+  };
+
+  const clearTrack = (index: number) => {
+    setOriginals((list) => list.map((b, i) => (i === index ? null : b)));
+    setProcessed((list) => list.map((b, i) => (i === index ? null : b)));
+    updateTrack(index, { takeId: null, startSec: 0, nudgeMs: 0 });
+  };
+
+  const placeIncoming = (index: number) => {
+    if (!incomingTake) return;
+    void loadTake(index, incomingTake);
+    setParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.delete("take");
+      return next;
+    });
+  };
+
+  const takeName = (id: string | null) =>
+    id ? (shelf.takes.find((take) => take.id === id)?.name ?? "Loading…") : null;
+  const busy = mode !== "stopped";
+  const armedName =
+    song.armed === null ? null : (song.tracks[song.armed]?.name ?? null);
 
   return (
-    <div className="studio-page bg-background">
+    <div className="lumina-app studio-tape-page">
       <AppNavigation />
+      <main className="lumina-main">
+        <div className="workspace-title">
+          <div>
+            <p className="studio-eyebrow">MAKE A LITTLE MUSIC</p>
+            <h1>The four-track</h1>
+          </div>
+          <p>Four voices, one tape. Sing a part, then sing against it.</p>
+        </div>
 
-      <div className="flex flex-1 min-h-0 flex-col">
-        {/* Transport bar */}
-        <TransportBar
-          transport={transportRef.current}
-          onResumeAudio={() => engineRef.current!.resume()}
-          onExportMidi={() => {
-            const { patterns, tracks, bpm } = useStudioStore.getState();
-            exportMidi(
-              patterns,
-              tracks.map((t) => t.name),
-              bpm,
-            );
+        {incoming && (
+          <div className="tape-incoming" role="region" aria-label="Place a take">
+            <span>
+              Put <b>{incoming.name}</b> on which track?
+            </span>
+            {song.tracks.map((track, i) => (
+              <button key={i} disabled={busy} onClick={() => placeIncoming(i)}>
+                {i + 1}. {track.name}
+              </button>
+            ))}
+            <button
+              className="quiet"
+              onClick={() =>
+                setParams((previous) => {
+                  const next = new URLSearchParams(previous);
+                  next.delete("take");
+                  return next;
+                })
+              }
+            >
+              Not now
+            </button>
+          </div>
+        )}
+
+        <CassetteDeck
+          song={song}
+          mode={mode}
+          position={position}
+          songSec={songSec}
+          armedName={armedName}
+          onPlay={() => void play()}
+          onStop={stop}
+          onRecord={() => void record()}
+          onRewind={() => setPosition(0)}
+          onChange={(patch) => {
+            setSong((current) => ({ ...current, ...patch }));
+            if (patch.bars) setPosition((p) => Math.min(p, songSeconds({ ...song, ...patch })));
           }}
-          onStartAudioCapture={() => audioExporterRef.current?.start()}
-          onStopAudioCapture={() => audioExporterRef.current?.stop()}
-          isCapturingAudio={() => audioExporterRef.current?.isActive ?? false}
         />
 
-        {/* Main workspace */}
-        <div className="flex-1 overflow-y-auto">
-          {/* ── Sequencer ───────────────────────────────────────────────── */}
-          <SequencerView
-            transport={transportRef.current}
-            onPreviewNote={previewNote}
-          />
+        {message && (
+          <p className="recording-message error tape-message" role="alert">
+            {message}
+          </p>
+        )}
 
-          {/* ── Track strips ────────────────────────────────────────────── */}
-          <div className="mx-6 mt-4 mb-6 rounded-2xl border border-border overflow-hidden">
-            {[...tracks].reverse().map((track, idx) => (
-              <div
-                key={track.id}
-                className={cn(
-                  "flex flex-wrap items-center gap-3 px-4 py-3",
-                  idx !== 0 && "border-t border-border",
-                  track.recordArm && "bg-destructive/5",
-                )}
-              >
-                {/* Record arm */}
-                <button
-                  onClick={() => setTrackArm(track.id)}
-                  title="Record arm"
-                  aria-label={`Arm ${track.name} for MIDI recording`}
-                  aria-pressed={track.recordArm}
-                  className={cn(
-                    "w-7 h-7 rounded-full flex items-center justify-center border-2 transition-colors shrink-0",
-                    track.recordArm
-                      ? "bg-destructive border-destructive text-destructive-foreground"
-                      : "border-border text-muted-foreground hover:border-destructive/50",
-                  )}
-                >
-                  <Mic2 className="w-3 h-3" />
-                </button>
-
-                {/* Track name */}
-                <span className="w-12 text-sm font-semibold text-foreground shrink-0">
-                  {track.name}
-                </span>
-
-                {/* Instrument selector */}
-                <select
-                  aria-label={`${track.name} instrument`}
-                  value={track.instrumentType}
-                  onChange={(e) =>
-                    setTrackInstrument(
-                      track.id,
-                      e.target.value as InstrumentType,
-                    )
-                  }
-                  className="bg-muted border border-border rounded px-2 py-1 text-xs
-                             focus:outline-none focus:ring-1 focus:ring-primary w-28 shrink-0"
-                >
-                  {INSTRUMENT_OPTIONS.map(([key, cfg]) => (
-                    <option key={key} value={key}>
-                      {cfg.icon} {cfg.name}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Volume */}
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="text-xs text-muted-foreground w-6 shrink-0">
-                    Vol
-                  </span>
-                  <Slider
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={[track.volume]}
-                    onValueChange={([v]) => setTrackVolume(track.id, v)}
-                    className="flex-1"
-                  />
-                  <span className="text-xs text-muted-foreground w-8 text-right shrink-0">
-                    {Math.round(track.volume * 100)}
-                  </span>
-                </div>
-
-                {/* Pan */}
-                <div className="flex items-center gap-2 w-36 shrink-0">
-                  <span className="text-xs text-muted-foreground w-6 shrink-0">
-                    Pan
-                  </span>
-                  <Slider
-                    min={-1}
-                    max={1}
-                    step={0.01}
-                    value={[track.pan]}
-                    onValueChange={([v]) => setTrackPan(track.id, v)}
-                    className="flex-1"
-                  />
-                  <span className="text-xs text-muted-foreground w-8 text-right shrink-0">
-                    {track.pan === 0
-                      ? "C"
-                      : track.pan > 0
-                        ? `R${Math.round(track.pan * 100)}`
-                        : `L${Math.round(-track.pan * 100)}`}
-                  </span>
-                </div>
-
-                {/* M / S */}
-                <div className="flex gap-1 shrink-0">
-                  <button
-                    onClick={() => setTrackMute(track.id, !track.mute)}
-                    className={cn(
-                      "w-7 h-7 rounded text-xs font-bold border transition-colors",
-                      track.mute
-                        ? "bg-yellow-500/80 border-yellow-500 text-white"
-                        : "border-border text-muted-foreground hover:border-yellow-500/50",
-                    )}
-                  >
-                    M
-                  </button>
-                  <button
-                    onClick={() => setTrackSolo(track.id, !track.solo)}
-                    className={cn(
-                      "w-7 h-7 rounded text-xs font-bold border transition-colors",
-                      track.solo
-                        ? "bg-green-500/80 border-green-500 text-white"
-                        : "border-border text-muted-foreground hover:border-green-500/50",
-                    )}
-                  >
-                    S
-                  </button>
-                </div>
-              </div>
+        <div className="tape-lanes">
+          <div className="tape-ruler" aria-hidden="true">
+            {Array.from({ length: song.bars }, (_, bar) => (
+              <span key={bar}>{bar % 4 === 0 ? bar + 1 : ""}</span>
             ))}
           </div>
+          {song.tracks.map((track, i) => (
+            <TapeLane
+              key={i}
+              index={i}
+              track={track}
+              original={originals[i]}
+              processed={processed[i]}
+              armed={song.armed === i}
+              recording={(mode === "recording" || mode === "count-in") && song.armed === i}
+              busy={busy}
+              heard={heard[i]}
+              songSec={songSec}
+              bars={song.bars}
+              position={position}
+              takes={shelf.takes}
+              takeName={takeName(track.takeId)}
+              onChange={(patch) => updateTrack(i, patch)}
+              onArm={() =>
+                setSong((current) => ({
+                  ...current,
+                  armed: current.armed === i ? null : i,
+                }))
+              }
+              onSeek={(seconds) => !busy && setPosition(seconds)}
+              onLoad={(id) => void loadTake(i, id)}
+              onClear={() => clearTrack(i)}
+            />
+          ))}
         </div>
-      </div>
+
+        <aside className="tape-tips">
+          <p>
+            <b>Try this:</b> arm Soprano, sing a simple line, and stop. Then arm
+            Alto and sing a harmony while Soprano plays back. Every take lands
+            on your shelf, so nothing is ever lost.
+          </p>
+          <button className="studio-text-link" onClick={() => navigate("/pitch-pipe")}>
+            Need a starting note? Open the pitch pipe →
+          </button>
+        </aside>
+      </main>
     </div>
   );
-};
-
-export default Studio;
+}
