@@ -20,6 +20,8 @@ export type TakeMeta = {
 export type TakeRecord = TakeMeta & { blob: Blob };
 
 export const MAX_TAKES = 40;
+/** What a take carries while it's being dragged out of the shelf. */
+export const TAKE_DRAG_TYPE = "application/x-lumina-take";
 export const MAX_SHELF_BYTES = 200 * 1024 * 1024;
 export const MAX_NAME_LENGTH = 60;
 

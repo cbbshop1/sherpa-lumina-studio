@@ -48,6 +48,11 @@ type ShelfSession = {
   ) => string | null;
   /** Decodes a shelf take, for the four-track. */
   takeAudio: (id: string) => Promise<AudioBuffer | null>;
+  shelfOpen: boolean;
+  setShelfOpen: (open: boolean) => void;
+  /** The take being dragged out of the shelf right now, if any. */
+  draggingId: string | null;
+  setDraggingId: (id: string | null) => void;
 };
 
 const Context = createContext<ShelfSession | null>(null);
@@ -68,6 +73,8 @@ export function OwnSoundProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<ShelfStatus>("loading");
   const [persistent, setPersistent] = useState(true);
   const [problem, setProblem] = useState("");
+  const [shelfOpen, setShelfOpen] = useState(false);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
   const store = useRef<TakeStore | null>(null);
   const latest = useRef({ records, selection });
   latest.current = { records, selection };
@@ -261,6 +268,10 @@ export function OwnSoundProvider({ children }: { children: ReactNode }) {
         takeBlob,
         shelveTake,
         takeAudio,
+        shelfOpen,
+        setShelfOpen,
+        draggingId,
+        setDraggingId,
       }}
     >
       {children}

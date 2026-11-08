@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Archive,
   AudioLines,
   CassetteTape,
   Download,
+  GripVertical,
   Pause,
   Pencil,
   Play,
@@ -20,7 +21,8 @@ import {
 } from "./ui/sheet";
 import { useShelf } from "../context/OwnSoundSession";
 import { useStudioSession } from "../context/StudioSession";
-import { formatDuration, type TakeMeta } from "../lib/shelf";
+import { TAKE_DRAG_TYPE, formatDuration, type TakeMeta } from "../lib/shelf";
+import { roomFromLocation } from "../lib/nextSteps";
 
 const when = (time: number) =>
   new Date(time).toLocaleString(undefined, {
@@ -34,7 +36,15 @@ export default function ShelfPanel() {
   const shelf = useShelf();
   const { stop: stopPreview } = useStudioSession();
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
+  const { pathname, search } = useLocation();
+  const room = roomFromLocation(pathname, search);
+  const lookingHere = room === "own-sound";
+  const {
+    shelfOpen: open,
+    setShelfOpen: setOpen,
+    draggingId,
+    setDraggingId,
+  } = shelf;
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -74,7 +84,7 @@ export default function ShelfPanel() {
     stopPlayer();
     await shelf.openTake(take.id);
     setOpen(false);
-    navigate("/pitch-pipe?view=waveform&source=microphone");
+    if (!lookingHere) navigate("/pitch-pipe?view=waveform&source=microphone");
   };
 
   const download = (take: TakeMeta) => {
@@ -89,7 +99,8 @@ export default function ShelfPanel() {
   };
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    // Not modal, so the page behind can catch a take dropped from the shelf.
+    <Sheet open={open} onOpenChange={setOpen} modal={false}>
       <SheetTrigger asChild>
         <button className="shelf-trigger" aria-label="Open your shelf of takes">
           <Archive size={14} />
@@ -97,13 +108,20 @@ export default function ShelfPanel() {
           {shelf.takes.length > 0 && <b>{shelf.takes.length}</b>}
         </button>
       </SheetTrigger>
-      <SheetContent side="right" className="shelf-panel">
+      <SheetContent
+        side="right"
+        className={`shelf-panel ${draggingId ? "dragging" : ""}`}
+        onInteractOutside={(event) => {
+          // A drop on the page shouldn't count as clicking away.
+          if (draggingId) event.preventDefault();
+        }}
+      >
         <SheetHeader>
           <p className="studio-eyebrow">YOUR TAKES</p>
           <SheetTitle className="shelf-title">The shelf</SheetTitle>
           <SheetDescription className="shelf-intro">
             Every recording you make lands here, so you can carry it from room
-            to room.
+            to room. Drag a take onto the analysis screen or a four-track lane.
             {shelf.persistent
               ? " Takes stay in this browser until you delete them."
               : " This browser won't save takes, so they disappear when you close the tab. Download any you want to keep."}
@@ -136,8 +154,24 @@ export default function ShelfPanel() {
             {shelf.takes.map((take) => (
               <li
                 key={take.id}
-                className={take.id === shelf.activeId ? "active" : ""}
+                className={`${take.id === shelf.activeId ? "active" : ""} ${draggingId === take.id ? "lifted" : ""}`}
+                draggable={editingId !== take.id}
+                onDragStart={(event) => {
+                  stopPlayer();
+                  event.dataTransfer.setData(TAKE_DRAG_TYPE, take.id);
+                  event.dataTransfer.setData("text/plain", take.name);
+                  event.dataTransfer.effectAllowed = "copy";
+                  // Wait a beat so the drag picture is taken before the shelf slides aside.
+                  setTimeout(() => setDraggingId(take.id), 0);
+                }}
+                onDragEnd={() => setDraggingId(null)}
+                title="Drag onto the analysis screen or a four-track lane"
               >
+                <GripVertical
+                  className="shelf-grip"
+                  size={14}
+                  aria-hidden="true"
+                />
                 <button
                   className="shelf-play"
                   onClick={() => toggle(take)}
@@ -182,7 +216,8 @@ export default function ShelfPanel() {
                   </span>
                   <div className="shelf-actions">
                     <button onClick={() => void look(take)}>
-                      <AudioLines size={13} /> See it
+                      <AudioLines size={13} />{" "}
+                      {lookingHere ? "Open here" : "See it"}
                     </button>
                     <button
                       onClick={() => {

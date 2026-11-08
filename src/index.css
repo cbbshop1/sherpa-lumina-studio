@@ -3862,3 +3862,69 @@ input[type="range"] {
     margin-left: 0;
   }
 }
+
+/* Dragging takes off the shelf */
+.shelf-panel {
+  transition:
+    transform 0.25s ease,
+    opacity 0.25s ease;
+}
+.shelf-panel.dragging {
+  transform: translateX(calc(100% - 64px));
+  opacity: 0.55;
+}
+.shelf-list li[draggable="true"] {
+  cursor: grab;
+}
+.shelf-list li.lifted {
+  opacity: 0.4;
+}
+.shelf-grip {
+  flex-shrink: 0;
+  align-self: center;
+  margin: 0 -6px 0 -4px;
+  color: #ffffff38;
+}
+.take-drop {
+  position: relative;
+}
+.take-drop-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  border: 2px dashed #e6b98b70;
+  border-radius: 14px;
+  background: #0c110ecc;
+  pointer-events: none;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.take-drop-hint span {
+  padding: 8px 14px;
+  border-radius: 20px;
+  background: #e6b98b1f;
+  color: #f1c79a;
+  font-size: 13px;
+  font-weight: 600;
+}
+.take-drop.over .take-drop-hint {
+  border-color: #e6b98b;
+  border-style: solid;
+  background: #1a1a12e6;
+}
+.take-drop.over .take-drop-hint span {
+  background: #e6b98b;
+  color: #211e16;
+}
+.tape-confirm {
+  background: #111813;
+  border: 1px solid #ffffff1a;
+  color: #f2e9d8;
+}
+.tape-confirm b {
+  color: #f1c79a;
+  font-weight: 600;
+}
