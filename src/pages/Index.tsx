@@ -16,6 +16,7 @@ import {
 import AppNavigation from "../components/AppNavigation";
 import WhatNext from "../components/WhatNext";
 import PianoKeyboard from "../components/PianoKeyboard";
+import PianoStaff from "../components/PianoStaff";
 import ChordLibrary from "../components/ChordLibrary";
 import ChordProgressionBuilder from "../components/ChordProgressionBuilder";
 import ScaleExplorer from "../components/ScaleExplorer";
@@ -206,7 +207,10 @@ const Index = () => {
             </div>
             <WhatNext />
             {pathname === "/piano" ? (
-              <PianoKeyboard />
+              <>
+                <PianoStaff />
+                <PianoKeyboard />
+              </>
             ) : (
               <div
                 className={

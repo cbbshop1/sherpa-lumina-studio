@@ -3928,3 +3928,94 @@ input[type="range"] {
   color: #f1c79a;
   font-weight: 600;
 }
+
+/* The grand staff above the piano: manuscript paper that writes as you play */
+.piano-staff {
+  margin-bottom: 18px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f6efe0, #ece2cc);
+  color: #2a2620;
+  box-shadow:
+    inset 0 1px 0 #ffffffa0,
+    0 10px 26px #00000055;
+  overflow: hidden;
+}
+.piano-staff-caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  padding: 14px 20px 0;
+}
+.piano-staff-caption .studio-eyebrow {
+  color: #8a6d4a;
+}
+.piano-staff-caption strong {
+  font-family: Georgia, serif;
+  font-size: 22px;
+  font-weight: 400;
+  color: #2a2620;
+}
+.piano-staff-caption span:last-child {
+  margin-left: auto;
+  font:
+    12px "Courier New",
+    monospace;
+  letter-spacing: 1px;
+  color: #6b5a44;
+}
+.piano-staff-scroll {
+  overflow-x: auto;
+  padding: 0 8px 6px;
+}
+.piano-staff svg {
+  display: block;
+}
+.staff-line,
+.staff-ledger {
+  stroke: #2a2620;
+  stroke-width: 0.9;
+  opacity: 0.6;
+}
+.staff-ledger {
+  opacity: 0.85;
+}
+.staff-clef,
+.staff-brace {
+  fill: #2a2620;
+  font-family: "Segoe UI Symbol", "Noto Music", "Apple Symbols", serif;
+}
+.staff-brace {
+  opacity: 0.85;
+}
+.staff-sign {
+  fill: #2a2620;
+  font-family: "Segoe UI Symbol", "Noto Music", "Apple Symbols", serif;
+}
+.staff-head {
+  fill: #2a2620;
+  transition: fill 0.12s;
+}
+.staff-hole {
+  fill: #f2eadb;
+}
+.staff-note {
+  opacity: 0.55;
+  transition: opacity 0.12s;
+}
+.staff-note.sounding {
+  opacity: 1;
+}
+.staff-note.sounding .staff-head,
+.staff-note.sounding .staff-sign {
+  fill: #c9473a;
+}
+.staff-note.sounding .staff-ledger {
+  stroke: #c9473a;
+}
+@media (prefers-reduced-motion: reduce) {
+  .staff-head,
+  .staff-note {
+    transition: none;
+  }
+}

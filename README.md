@@ -17,6 +17,7 @@ The app runs entirely in the browser. Chord favorites and chord progressions are
 - Circular pitch pipe with octave and volume controls
 - Pitch-pipe waveform visualizer and advanced tone generator
 - Four-track vocal tape deck with overdubbing, reverb, and echo
+- A live grand staff above the piano that writes each note, chord, or scale as it is played, with sounding notes in red
 - The shelf: every recording is saved as a take in this browser (IndexedDB), opens from any room, and can be played, renamed, downloaded, or deleted
 - "What next?" suggestions in each room that carry the current selection or take into the next tool
 
