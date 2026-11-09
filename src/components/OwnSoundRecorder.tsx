@@ -175,7 +175,7 @@ export default function OwnSoundRecorder() {
   };
   return (
     <TakeDropZone
-      label="Drop to look at this take"
+      label="Drop to analyze this take"
       disabled={busy}
       onTake={(id) => {
         audio.current?.pause();

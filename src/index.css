@@ -1691,7 +1691,8 @@ input[type="range"] {
 }
 .piano-white-key {
   position: relative;
-  height: clamp(180px, 25vw, 264px);
+  /* Short enough that the staff and the whole keyboard share one screen. */
+  height: clamp(150px, min(22vw, 26vh), 236px);
   background: linear-gradient(#eae6d9, #fbf7ec 18%, #eee9dc 96%);
   border: 1px solid #c7c4b4;
   border-bottom: 6px solid #bcb9ac;
@@ -3931,7 +3932,7 @@ input[type="range"] {
 
 /* The grand staff above the piano: manuscript paper that writes as you play */
 .piano-staff {
-  margin-bottom: 18px;
+  margin-bottom: 12px;
   border-radius: 14px;
   background: linear-gradient(180deg, #f6efe0, #ece2cc);
   color: #2a2620;
@@ -3945,14 +3946,14 @@ input[type="range"] {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px 14px;
-  padding: 14px 20px 0;
+  padding: 10px 20px 0;
 }
 .piano-staff-caption .studio-eyebrow {
   color: #8a6d4a;
 }
 .piano-staff-caption strong {
   font-family: Georgia, serif;
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 400;
   color: #2a2620;
 }
@@ -4018,4 +4019,8 @@ input[type="range"] {
   .staff-note {
     transition: none;
   }
+}
+
+.pitch-drop > .take-drop-hint {
+  border-radius: 18px;
 }

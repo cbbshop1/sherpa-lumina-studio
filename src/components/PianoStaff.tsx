@@ -10,7 +10,7 @@ const LEFT = 40;
 const FIRST = 128;
 const STEP = 46;
 /** Drawn a little larger than print size so it reads at a glance. */
-const SCALE = 1.35;
+const SCALE = 1.1;
 
 /** A grand staff that writes down whatever the piano is playing. */
 export default function PianoStaff() {

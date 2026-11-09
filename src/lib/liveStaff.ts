@@ -124,8 +124,8 @@ export function liveStaff({
 
 /** The top and bottom of the drawing, so ledger-line notes never get cut off. */
 export function staffBounds(columns: LiveColumn[]) {
-  let top = 20;
-  let bottom = 210;
+  let top = 28;
+  let bottom = 200;
   for (const { notes } of columns)
     for (const note of notes) {
       top = Math.min(top, note.y - 20);

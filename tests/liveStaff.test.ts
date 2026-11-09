@@ -78,15 +78,15 @@ test("a MIDI key held on top of the selection is shown too", () => {
 });
 
 test("the drawing grows to fit very high and very low notes", () => {
-  assert.deepEqual(staffBounds([]), { top: 20, bottom: 210 });
+  assert.deepEqual(staffBounds([]), { top: 28, bottom: 200 });
   const high = staffBounds(
     liveStaff({ selected: [96], sounding: [], kind: "note" }),
   );
-  assert.ok(high.top < 20);
+  assert.ok(high.top < 28);
   const low = staffBounds(
     liveStaff({ selected: [24], sounding: [], kind: "note" }),
   );
-  assert.ok(low.bottom > 210);
+  assert.ok(low.bottom > 200);
 });
 
 test("double-sharp spellings are rewritten in plain flats", () => {
