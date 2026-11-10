@@ -22,7 +22,7 @@ export default function GlobalMidiControls() {
         <InstrumentSelector
           selected={session.instrument}
           onSelect={session.setInstrument}
-          ariaLabel="MIDI instrument"
+          ariaLabel="Instrument"
         />
         <span className="midi-held-notes" aria-label="Held MIDI notes">
           {midi.activeNotes

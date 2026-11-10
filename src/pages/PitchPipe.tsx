@@ -417,8 +417,8 @@ const PitchPipe = () => {
                   Reset sound
                 </button>
                 <p className="control-footnote">
-                  These controls shape the shared preview. Piano and Studio keep
-                  their own instruments.
+                  These controls shape the tone on this page. The other tools
+                  play the instrument you choose at the top.
                 </p>
               </aside>
             </div>

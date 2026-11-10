@@ -19,7 +19,7 @@ import WhatNext from "../components/WhatNext";
 import PianoKeyboard from "../components/PianoKeyboard";
 import PianoStaff from "../components/PianoStaff";
 import ChordLibrary from "../components/ChordLibrary";
-import ChordProgressionBuilder from "../components/ChordProgressionBuilder";
+import KeyRoom from "../components/KeyRoom";
 import ScaleExplorer from "../components/ScaleExplorer";
 import {
   SessionBar,
@@ -63,7 +63,7 @@ const tools = [
     kind: "progressions",
     title: "Progressions",
     label: "ONE THING LEADS TO ANOTHER",
-    description: "Collect a few favorite chords and find where they take you.",
+    description: "Pick a key, see the chords that live in it, and find where they lead.",
     icon: Layers3,
     color: "lavender",
   },
@@ -225,7 +225,7 @@ const Index = () => {
             ) : (
               <div
                 className={
-                  pathname === "/scales" ? "scale-layout" : "learning-layout"
+                  pathname === "/chords" ? "learning-layout" : "scale-layout"
                 }
               >
                 <section className="focused-tool">
@@ -264,14 +264,9 @@ const Index = () => {
                       onScaleSelect={chooseScale}
                     />
                   )}
-                  {pathname === "/progressions" && (
-                    <ChordProgressionBuilder
-                      onPlayProgression={session.playProgression}
-                      favorites={library.favorites}
-                    />
-                  )}
+                  {pathname === "/progressions" && <KeyRoom />}
                 </section>
-                {pathname !== "/scales" && (
+                {pathname === "/chords" && (
                   <div className="learning-sidebar">
                     <SelectionPreview />
                     <aside className="discovery-note">
@@ -279,23 +274,14 @@ const Index = () => {
                         <AudioLines size={14} /> TRY A SMALL EXPERIMENT
                       </span>
                       <p>
-                        {pathname === "/chords"
-                          ? "Choose major, then minor on the same root. Only one note moves. How much does the feeling change?"
-                          : pathname === "/scales"
-                            ? "Compare a major scale with natural minor. Look for the notes that move, then listen to each selection."
-                            : "Save chords with the heart in Chord library, then bring them here. Start with just two and listen to the movement."}
+                        Choose major, then minor on the same root. Only one note
+                        moves. How much does the feeling change?
                       </p>
                       <Link
-                        to={
-                          pathname === "/progressions"
-                            ? "/chords"
-                            : "/pitch-pipe?view=waveform"
-                        }
+                        to="/pitch-pipe?view=waveform"
                         className="studio-text-link"
                       >
-                        {pathname === "/progressions"
-                          ? "Find some chords"
-                          : "See the sound"}
+                        See the sound
                         <ArrowUpRight size={14} />
                       </Link>
                     </aside>

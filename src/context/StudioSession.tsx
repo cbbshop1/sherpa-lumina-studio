@@ -131,9 +131,11 @@ function useSessionState() {
           frequencies,
           value.sound,
           value.strum,
-          value.pathname.replace(/\/+$/, "") === "/piano"
-            ? value.instrument
-            : undefined,
+          // The chosen instrument plays everywhere except Pitch & tone, where
+          // the plain tone and its shaping controls are the subject.
+          value.pathname.replace(/\/+$/, "") === "/pitch-pipe"
+            ? undefined
+            : value.instrument,
           sequence?.timing,
         );
         if (token !== request.current || !started) return;

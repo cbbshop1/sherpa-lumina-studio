@@ -111,6 +111,27 @@ export const useChordProgressions = () => {
     return newProgression.id;
   };
 
+  /** Save a finished progression in one step. */
+  const saveProgression = (
+    name: string,
+    chords: { name: string; notes: string[] }[],
+  ) => {
+    const id = crypto.randomUUID();
+    setProgressions((prev) => [
+      ...prev,
+      {
+        id,
+        name,
+        chords: chords.map((chord) => ({
+          id: crypto.randomUUID(),
+          name: chord.name,
+          notes: chord.notes,
+        })),
+      },
+    ]);
+    return id;
+  };
+
   const deleteProgression = (id: string) => {
     setProgressions((prev) => prev.filter((prog) => prog.id !== id));
   };
@@ -166,6 +187,7 @@ export const useChordProgressions = () => {
     removeFavorite,
     isFavorite,
     createProgression,
+    saveProgression,
     deleteProgression,
     addChordToProgression,
     removeChordFromProgression,
