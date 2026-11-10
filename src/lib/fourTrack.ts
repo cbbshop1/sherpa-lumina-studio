@@ -1,10 +1,13 @@
 // The four-track's musical arithmetic and saved settings. No audio here, so it
-// can be tested on its own. Everything is in 4/4 time.
+// can be tested on its own. Songs are in 4/4 unless a groove from the rhythm
+// room brings its own meter.
+
+import { readGroove, type Groove, type Stress, type Unit } from "./groove.ts";
 
 export const BEATS_PER_BAR = 4;
 export const BAR_CHOICES = [8, 16, 32] as const;
-export const MIN_BPM = 60;
-export const MAX_BPM = 160;
+export const MIN_BPM = 30;
+export const MAX_BPM = 320;
 export const MAX_NUDGE_MS = 250;
 export const VOICE_PARTS = ["Soprano", "Alto", "Tenor", "Bass"] as const;
 
@@ -33,6 +36,18 @@ export type SongSettings = {
   countIn: boolean;
   armed: number | null;
   tracks: TrackSettings[];
+  /** A groove from the rhythm room. Its meter sets the bars and the click. */
+  groove: Groove | null;
+  /** Play the groove's drums under the tape (otherwise just the click). */
+  grooveOn: boolean;
+};
+
+/** The song's pulse: how long each one lasts, how many make a bar, their weight. */
+export type TimeGrid = {
+  pulseSec: number;
+  pulsesPerBar: number;
+  unit: Unit;
+  stresses: Stress[];
 };
 
 export const STORAGE_KEY = "lumina-four-track";
@@ -60,6 +75,8 @@ export function defaultSong(): SongSettings {
     countIn: true,
     armed: 0,
     tracks: VOICE_PARTS.map(blankTrack),
+    groove: null,
+    grooveOn: false,
   };
 }
 
@@ -84,6 +101,10 @@ export function readSong(raw: string | null): SongSettings {
     song.bars = saved.bars as SongSettings["bars"];
   if (typeof saved.click === "boolean") song.click = saved.click;
   if (typeof saved.countIn === "boolean") song.countIn = saved.countIn;
+  if (saved.groove && typeof saved.groove === "object") {
+    song.groove = readGroove(saved.groove);
+    song.grooveOn = saved.grooveOn !== false;
+  }
   song.armed =
     saved.armed === null
       ? null
@@ -112,22 +133,44 @@ export function readSong(raw: string | null): SongSettings {
 }
 
 export const secondsPerBeat = (bpm: number) => 60 / bpm;
-export const secondsPerBar = (bpm: number) => secondsPerBeat(bpm) * BEATS_PER_BAR;
-export const songSeconds = (song: Pick<SongSettings, "bpm" | "bars">) =>
-  secondsPerBar(song.bpm) * song.bars;
+
+/** The pulse grid for a song: plain 4/4, or the meter of its groove. */
+export function songGrid(song: Pick<SongSettings, "bpm"> & { groove?: Groove | null }): TimeGrid {
+  if (song.groove)
+    return {
+      pulseSec: secondsPerBeat(song.bpm),
+      pulsesPerBar: song.groove.meter.top,
+      unit: song.groove.meter.unit,
+      stresses: song.groove.meter.stresses,
+    };
+  return {
+    pulseSec: secondsPerBeat(song.bpm),
+    pulsesPerBar: BEATS_PER_BAR,
+    unit: 4,
+    stresses: ["strong", "light", "light", "light"],
+  };
+}
+
+export const secondsPerBar = (grid: TimeGrid) => grid.pulseSec * grid.pulsesPerBar;
+export const songSeconds = (
+  song: Pick<SongSettings, "bpm" | "bars"> & { groove?: Groove | null },
+) => secondsPerBar(songGrid(song)) * song.bars;
+
+/** The tempo as quarter notes per minute, so echo repeats feel the same in any meter. */
+export const quarterBpm = (grid: TimeGrid) => (60 / grid.pulseSec) * (4 / grid.unit);
 
 /** Bar and beat (both counted from 1) at a time in the song. */
-export function barBeat(seconds: number, bpm: number) {
-  const beats = Math.max(0, Math.floor(seconds / secondsPerBeat(bpm) + 1e-6));
+export function barBeat(seconds: number, grid: TimeGrid) {
+  const beats = Math.max(0, Math.floor(seconds / grid.pulseSec + 1e-6));
   return {
-    bar: Math.floor(beats / BEATS_PER_BAR) + 1,
-    beat: (beats % BEATS_PER_BAR) + 1,
+    bar: Math.floor(beats / grid.pulsesPerBar) + 1,
+    beat: (beats % grid.pulsesPerBar) + 1,
   };
 }
 
 /** "009.2" style counter, like the tape counter on an old deck. */
-export function counterText(seconds: number, bpm: number) {
-  const { bar, beat } = barBeat(seconds, bpm);
+export function counterText(seconds: number, grid: TimeGrid) {
+  const { bar, beat } = barBeat(seconds, grid);
   return `${String(bar).padStart(3, "0")}.${beat}`;
 }
 

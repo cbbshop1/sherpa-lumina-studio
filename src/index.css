@@ -4024,3 +4024,347 @@ input[type="range"] {
 .pitch-drop > .take-drop-hint {
   border-radius: 18px;
 }
+
+/* ── The rhythm room ─────────────────────────────────────────────────── */
+.color-teal {
+  --tool-color: #8fc7bd;
+}
+/* Seven rooms: the last card runs the full width instead of sitting alone. */
+.lumina-tool-grid > .lumina-tool-card:last-child:nth-child(3n + 1) {
+  grid-column: 1 / -1;
+}
+.meter-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px 30px;
+  margin-bottom: 16px;
+  padding: 18px 22px;
+  border: 1px solid #ffffff12;
+  border-radius: 14px;
+  background: #ffffff05;
+}
+.meter-signature {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  font-family: Georgia, serif;
+  color: #f2e9d8;
+}
+.meter-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.meter-top span {
+  min-width: 46px;
+  text-align: center;
+  font-size: 40px;
+  line-height: 1;
+}
+.meter-top button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid #a7b39140;
+  color: #d9ddca;
+}
+.meter-top button:disabled {
+  opacity: 0.3;
+}
+.meter-signature i {
+  width: 52px;
+  height: 2px;
+  background: #f2e9d8;
+  border-radius: 2px;
+}
+.meter-signature select {
+  font-family: Georgia, serif;
+  font-size: 34px;
+  line-height: 1;
+  text-align: center;
+  background: transparent;
+  color: #f2e9d8;
+  border: none;
+  cursor: pointer;
+}
+.meter-signature select option {
+  font-size: 15px;
+  background: #111813;
+}
+.meter-field {
+  display: grid;
+  gap: 8px;
+  flex: 1 1 260px;
+}
+.meter-field .studio-eyebrow,
+.groove-transport .studio-eyebrow {
+  color: #a5ba9f;
+}
+.meter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.meter-chips button {
+  padding: 6px 11px;
+  border-radius: 20px;
+  border: 1px solid #a7b39138;
+  font-size: 12px;
+  color: #d9ddca;
+}
+.meter-chips button.on {
+  background: #8fc7bd;
+  border-color: #8fc7bd;
+  color: #102019;
+  font-weight: 600;
+}
+.meter-chips button:disabled {
+  opacity: 0.55;
+}
+.meter-chips input {
+  width: 170px;
+  padding: 6px 11px;
+  border-radius: 20px;
+  border: 1px dashed #a7b39150;
+  background: transparent;
+  color: #f2e9d8;
+  font-size: 12px;
+}
+.meter-chips input.invalid {
+  border-color: #d34a3c;
+}
+.groove-transport {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 24px;
+  margin-bottom: 16px;
+}
+.groove-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: 30px;
+  background: #8fc7bd;
+  color: #102019;
+  font-weight: 700;
+  font-size: 14px;
+}
+.groove-play.on {
+  background: #e6b98b;
+}
+.groove-tempo,
+.groove-lean,
+.groove-preset {
+  display: grid;
+  gap: 3px;
+}
+.groove-tempo b,
+.groove-lean b {
+  font-size: 14px;
+  color: #f2e9d8;
+}
+.groove-tempo input {
+  width: 170px;
+  accent-color: #8fc7bd;
+}
+.groove-lean input {
+  width: 120px;
+  accent-color: #8fc7bd;
+}
+.groove-pulse {
+  color: #d9ddca;
+  font:
+    700 10px "Courier New",
+    monospace;
+  letter-spacing: 1.4px;
+  background: #ffffff08;
+}
+.groove-preset select {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #a7b39140;
+  background: #0c110e;
+  color: #f2e9d8;
+  font-size: 13px;
+}
+.groove-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #aeb8ae;
+}
+.groove-grid-wrap {
+  overflow-x: auto;
+  padding: 14px;
+  border: 1px solid #ffffff12;
+  border-radius: 14px;
+  background: #0c110e;
+}
+.groove-grid {
+  display: grid;
+  gap: 4px 3px;
+  align-items: center;
+  min-width: max-content;
+}
+.groove-corner {
+  display: grid;
+  font-size: 13px;
+  color: #f2e9d8;
+}
+.groove-corner small {
+  font-size: 9px;
+  line-height: 1.3;
+  color: #9da89c;
+}
+.groove-count {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  height: 38px;
+  align-content: end;
+  font:
+    700 11px "Courier New",
+    monospace;
+  color: #d9ddca;
+  border-radius: 6px;
+}
+.groove-count.sub {
+  font-weight: 400;
+  font-size: 10px;
+  color: #6f7b6f;
+}
+.groove-count i {
+  border-radius: 50%;
+  background: #8fc7bd;
+}
+.groove-count.strong i {
+  width: 14px;
+  height: 14px;
+}
+.groove-count.medium i {
+  width: 10px;
+  height: 10px;
+  opacity: 0.8;
+}
+.groove-count.light i {
+  width: 6px;
+  height: 6px;
+  opacity: 0.55;
+}
+.groove-count.now {
+  color: #f1c79a;
+}
+.groove-count.now i {
+  background: #e6b98b;
+}
+button.groove-count:hover {
+  background: #ffffff0a;
+}
+.groove-name {
+  text-align: left;
+  font-size: 12px;
+  color: #d9ddca;
+  padding: 0 8px 0 0;
+}
+.groove-name:hover {
+  color: #f1c79a;
+}
+.groove-cell {
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: #ffffff12;
+  transition: background 0.08s;
+}
+.groove-cell.g1 {
+  background: #ffffff09;
+}
+.groove-cell.between {
+  height: 24px;
+  opacity: 0.85;
+}
+.groove-cell.group-start {
+  box-shadow: inset 2px 0 0 #8fc7bd55;
+}
+.groove-cell.bar-start {
+  box-shadow: inset 3px 0 0 #f2e9d8aa;
+}
+.groove-cell.hit {
+  background: #8fc7bd;
+}
+.groove-cell.accent {
+  background: #e6b98b;
+  border-color: #fff3e0;
+}
+.groove-cell.now {
+  outline: 2px solid #e6b98b90;
+  outline-offset: -1px;
+}
+.groove-cell:hover {
+  border-color: #ffffff40;
+}
+.groove-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 24px;
+  margin-top: 16px;
+}
+.groove-footer p {
+  max-width: 640px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #aeb8ae;
+}
+.groove-footer b {
+  color: #f2e9d8;
+}
+.groove-send {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 16px;
+  border-radius: 10px;
+  border: 1px solid #e6b98b80;
+  color: #f1c79a;
+  font-size: 13px;
+  font-weight: 600;
+}
+.groove-send:hover {
+  background: #e6b98b14;
+}
+.deck-groove {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.deck-groove-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #00000014;
+  color: #2b2f2e;
+  font: inherit;
+  letter-spacing: 0.8px;
+}
+.deck-groove-remove {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: #3d4645;
+}
+.deck-groove-remove:hover:not(:disabled) {
+  background: #00000020;
+}

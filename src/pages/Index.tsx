@@ -5,6 +5,7 @@ import {
   ArrowUpRight,
   AudioLines,
   ChevronRight,
+  Drum,
   Heart,
   Layers3,
   Music2,
@@ -65,6 +66,16 @@ const tools = [
     description: "Collect a few favorite chords and find where they take you.",
     icon: Layers3,
     color: "lavender",
+  },
+  {
+    path: "/rhythm",
+    kind: "rhythm",
+    title: "The rhythm room",
+    label: "FEEL THE PULSE",
+    description:
+      "Build a groove in any meter, from rock to samba to 7/8, and sing over it.",
+    icon: Drum,
+    color: "teal",
   },
   {
     path: "/pitch-pipe",
@@ -138,7 +149,7 @@ const Index = () => {
                 <p>
                   A place for musical curiosity.
                   <br />
-                  Six connected tools. Plenty of room to explore.
+                  Seven connected tools. Plenty of room to explore.
                 </p>
               </div>
               <div className="lumina-hero-signature" aria-hidden="true">

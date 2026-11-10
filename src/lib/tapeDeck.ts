@@ -3,15 +3,17 @@
 // tracks the singer is hearing.
 
 import {
-  BEATS_PER_BAR,
   echoSettings,
   effectiveStart,
   placeTake,
   renderLength,
   reverbSettings,
   roomImpulse,
-  secondsPerBeat,
+  type TimeGrid,
 } from "./fourTrack";
+import type { Groove, Stress } from "./groove";
+import { playPulse } from "./drumVoices";
+import { GrooveScheduler } from "./grooveScheduler";
 
 export type DeckTrack = {
   buffer: AudioBuffer | null;
@@ -58,6 +60,7 @@ export class TapeDeck {
   /** Audio-clock time at which song time `fromSec` sounds. */
   private songZeroTime = 0;
   private fromSec = 0;
+  private groove: GrooveScheduler | null = null;
   running = false;
 
   get ctx() {
@@ -80,28 +83,21 @@ export class TapeDeck {
     return !!this.context && this.running && this.context.currentTime < this.songZeroTime;
   }
 
-  private click(when: number, accent: boolean) {
-    const ctx = this.ctx;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.frequency.value = accent ? 1600 : 1100;
-    gain.gain.setValueAtTime(0.0001, when);
-    gain.gain.exponentialRampToValueAtTime(accent ? 0.35 : 0.2, when + 0.002);
-    gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
-    osc.connect(gain).connect(this.master!);
-    osc.start(when);
-    osc.stop(when + 0.06);
-    this.voices.push(osc);
+  private click(when: number, stress: Stress) {
+    this.voices.push(...playPulse(this.ctx, this.master!, when, stress));
   }
 
-  private scheduleClicks(fromSec: number, toSec: number, bpm: number, countIn: boolean) {
-    const beat = secondsPerBeat(bpm);
+  /** The click on every pulse, with the meter's stresses, plus the count-in. */
+  private scheduleClicks(fromSec: number, toSec: number, grid: TimeGrid, countIn: boolean) {
+    const beat = grid.pulseSec;
+    const stress = (n: number) => grid.stresses[n % grid.pulsesPerBar] ?? "light";
     if (countIn)
-      for (let i = 0; i < BEATS_PER_BAR; i++)
-        this.click(this.songZeroTime - (BEATS_PER_BAR - i) * beat, i === 0);
+      for (let i = 0; i < grid.pulsesPerBar; i++)
+        this.click(this.songZeroTime - (grid.pulsesPerBar - i) * beat, stress(i));
+    if (toSec <= fromSec) return;
     const first = Math.ceil(fromSec / beat - 1e-6);
     for (let n = first; n * beat < toSec; n++)
-      this.click(this.songZeroTime + (n * beat - fromSec), n % BEATS_PER_BAR === 0);
+      this.click(this.songZeroTime + (n * beat - fromSec), stress(n));
   }
 
   private scheduleTracks(tracks: DeckTrack[], fromSec: number, toSec: number) {
@@ -129,23 +125,39 @@ export class TapeDeck {
     tracks: DeckTrack[];
     fromSec: number;
     toSec: number;
-    bpm: number;
+    grid: TimeGrid;
     click: boolean;
     countIn?: boolean;
+    /** Drums from the rhythm room, played under the tape. */
+    groove?: Groove | null;
   }) {
     this.stopSound();
     const ctx = this.ctx;
     await ctx.resume();
-    const lead = options.countIn ? BEATS_PER_BAR * secondsPerBeat(options.bpm) : 0;
+    const { grid } = options;
+    const lead = options.countIn ? grid.pulsesPerBar * grid.pulseSec : 0;
     this.fromSec = options.fromSec;
     this.songZeroTime = ctx.currentTime + 0.12 + lead;
     if (options.click || options.countIn)
       this.scheduleClicks(
         options.fromSec,
         options.click ? options.toSec : options.fromSec,
-        options.bpm,
+        grid,
         !!options.countIn,
       );
+    if (options.groove) {
+      // The groove loops from the top of the song, at the song's tempo.
+      const groove = { ...options.groove, tempo: 60 / grid.pulseSec };
+      this.groove = new GrooveScheduler(
+        ctx,
+        this.master!,
+        () => groove,
+        this.songZeroTime - options.fromSec,
+        () => ({ pattern: true, pulses: false }),
+        options.toSec,
+      );
+      this.groove.start(options.fromSec);
+    }
     this.scheduleTracks(options.tracks, options.fromSec, options.toSec);
     this.running = true;
   }
@@ -167,9 +179,10 @@ export class TapeDeck {
     tracks: DeckTrack[];
     fromSec: number;
     songLengthSec: number;
-    bpm: number;
+    grid: TimeGrid;
     click: boolean;
     countIn: boolean;
+    groove?: Groove | null;
   }) {
     this.stop();
     const ctx = this.ctx;
@@ -214,9 +227,10 @@ export class TapeDeck {
       tracks: options.tracks,
       fromSec: options.fromSec,
       toSec: options.songLengthSec,
-      bpm: options.bpm,
+      grid: options.grid,
       click: options.click,
       countIn: options.countIn,
+      groove: options.groove,
     });
     recording.songZeroFrame = Math.round(this.songZeroTime * ctx.sampleRate);
   }
@@ -226,6 +240,8 @@ export class TapeDeck {
   }
 
   private stopSound() {
+    this.groove?.stop();
+    this.groove = null;
     for (const voice of this.voices) {
       try {
         voice.stop();

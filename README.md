@@ -61,6 +61,18 @@ Use `/pitch-pipe?view=waveform` to open the sound visualization directly. Playba
 
 The audio context is initialized after the first user interaction, which is required by modern browser audio policies.
 
+### `/rhythm`
+
+The rhythm room is a groove maker built on a meter engine:
+
+- Any time signature (1 to 16 pulses over 2, 4, 8, or 16), with groupings such as 2+2+3, 3+4, or your own
+- A strong, medium, or light stress on every pulse, shown as dots and audible with "Hear the pulse"
+- Pulses split in 2, 3, or 4, counted the way musicians count (1 e & a, 1 trip let, 1 2 1 2 1 2 3)
+- Seven built-in synthesized sounds: kick, snare, hi-hat, hand clap, rim/clave, shaker, cowbell
+- Hits and accents, 1 or 2 bars, tempo in the meter's own note value, and a "lean" control for swing and samba feel
+- Presets: rock beat, waltz, samba, son clave 3-2 and 2-3, 6/8 bell pattern, 7/8 in two groupings, 5/4 swing
+- "Sing over this in the four-track", which puts the groove and its meter on the tape
+
 ### `/studio`
 
 The studio is a four-track tape deck for voices, styled after a late-90s portable cassette player. It provides:

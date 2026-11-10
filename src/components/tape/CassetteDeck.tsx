@@ -1,4 +1,4 @@
-import { Circle, Headphones, Play, SkipBack, Square } from "lucide-react";
+import { Circle, Drum, Headphones, Play, SkipBack, Square, X } from "lucide-react";
 import {
   BAR_CHOICES,
   MAX_BPM,
@@ -6,7 +6,9 @@ import {
   clockText,
   counterText,
   type SongSettings,
+  type TimeGrid,
 } from "../../lib/fourTrack";
+import { meterLabel, tempoLabel } from "../../lib/groove";
 
 export type DeckMode = "stopped" | "playing" | "count-in" | "recording" | "arming";
 
@@ -15,7 +17,10 @@ type Props = {
   mode: DeckMode;
   position: number;
   songSec: number;
+  grid: TimeGrid;
   armedName: string | null;
+  onRemoveGroove: () => void;
+  onOpenRhythm: () => void;
   onPlay: () => void;
   onStop: () => void;
   onRecord: () => void;
@@ -29,7 +34,10 @@ export default function CassetteDeck({
   mode,
   position,
   songSec,
+  grid,
   armedName,
+  onRemoveGroove,
+  onOpenRhythm,
   onPlay,
   onStop,
   onRecord,
@@ -39,6 +47,10 @@ export default function CassetteDeck({
   const moving = mode === "playing" || mode === "recording" || mode === "count-in";
   const busy = mode !== "stopped";
   const progress = Math.min(1, position / songSec);
+  const meter = song.groove ? meterLabel(song.groove.meter) : "4/4";
+  const tempoText = song.groove
+    ? tempoLabel(grid.unit, song.bpm)
+    : `${song.bpm} BPM`;
   return (
     <section className="cassette-deck" aria-label="Four-track tape deck">
       <div className="deck-body">
@@ -51,7 +63,9 @@ export default function CassetteDeck({
           <div className={`cassette-window ${moving ? "moving" : ""}`} aria-hidden="true">
             <div className="cassette-label">
               <span>SIDE A</span>
-              <em>{song.bars} BARS · {song.bpm} BPM</em>
+              <em>
+                {song.bars} BARS · {meter}
+              </em>
             </div>
             <div className="cassette-tape">
               {/* Tape moves from the left reel to the right as the song plays. */}
@@ -74,11 +88,11 @@ export default function CassetteDeck({
               </div>
               <div className="lcd-counter">
                 <small>BAR</small>
-                {counterText(Math.min(position, songSec), song.bpm)}
+                {counterText(Math.min(position, songSec), grid)}
               </div>
               <div className="lcd-row">
                 <span>{clockText(position)}</span>
-                <span>{song.bpm} BPM</span>
+                <span>{tempoText}</span>
               </div>
             </div>
             <div className="deck-transport" role="group" aria-label="Transport">
@@ -126,7 +140,7 @@ export default function CassetteDeck({
               max={MAX_BPM}
               value={song.bpm}
               disabled={busy}
-              aria-label="Tempo in beats per minute"
+              aria-label={`Tempo, ${tempoText}`}
               onChange={(event) => {
                 const value = Number(event.target.value);
                 if (value >= MIN_BPM && value <= MAX_BPM) onChange({ bpm: value });
@@ -164,6 +178,29 @@ export default function CassetteDeck({
           >
             <i /> CLICK
           </button>
+          {song.groove && (
+            <span className="deck-groove">
+              <button
+                className={`deck-switch ${song.grooveOn ? "on" : ""}`}
+                aria-pressed={song.grooveOn}
+                onClick={() => onChange({ grooveOn: !song.grooveOn })}
+                title={`${song.groove.name}, ${meter}`}
+              >
+                <i /> GROOVE
+              </button>
+              <button className="deck-groove-name" onClick={onOpenRhythm} title="Change it in the rhythm room">
+                <Drum size={12} /> {song.groove.name}
+              </button>
+              <button
+                className="deck-groove-remove"
+                disabled={busy}
+                onClick={onRemoveGroove}
+                aria-label="Take the groove off the tape and go back to 4/4"
+              >
+                <X size={12} />
+              </button>
+            </span>
+          )}
           <button
             className={`deck-switch ${song.countIn ? "on" : ""}`}
             aria-pressed={song.countIn}

@@ -12,8 +12,12 @@ import {
   readSong,
   renderLength,
   roomImpulse,
+  songGrid,
   songSeconds,
 } from "../src/lib/fourTrack.ts";
+import { makeMeter, presets } from "../src/lib/groove.ts";
+
+const grid120 = songGrid({ bpm: 120 });
 
 test("a new song is four voice parts, 32 bars at a relaxed tempo", () => {
   const song = defaultSong();
@@ -29,10 +33,10 @@ test("a new song is four voice parts, 32 bars at a relaxed tempo", () => {
 });
 
 test("the counter reads bar and beat, counted from one", () => {
-  assert.deepEqual(barBeat(0, 120), { bar: 1, beat: 1 });
-  assert.deepEqual(barBeat(0.5, 120), { bar: 1, beat: 2 });
-  assert.deepEqual(barBeat(2, 120), { bar: 2, beat: 1 });
-  assert.equal(counterText(17.9, 120), "009.4");
+  assert.deepEqual(barBeat(0, grid120), { bar: 1, beat: 1 });
+  assert.deepEqual(barBeat(0.5, grid120), { bar: 1, beat: 2 });
+  assert.deepEqual(barBeat(2, grid120), { bar: 2, beat: 1 });
+  assert.equal(counterText(17.9, grid120), "009.4");
   assert.equal(clockText(85.33), "1:25.3");
 });
 
@@ -51,7 +55,7 @@ test("saved songs are repaired rather than thrown away", () => {
       ],
     }),
   );
-  assert.equal(song.bpm, 160);
+  assert.equal(song.bpm, 320);
   assert.equal(song.bars, 32);
   assert.equal(song.click, false);
   assert.equal(song.armed, null);
@@ -129,4 +133,26 @@ test("the room sound is the same every time and dies away", () => {
   const early = a.slice(0, 100).reduce((s, v) => s + Math.abs(v), 0);
   const late = a.slice(900).reduce((s, v) => s + Math.abs(v), 0);
   assert.ok(late < early / 50);
+});
+
+test("a groove brings its own meter: 7/8 bars count seven pulses", () => {
+  const seven = presets().find((g) => g.name === "7/8 · 2+2+3")!;
+  const song = { ...defaultSong(), bpm: 210, bars: 8 as const, groove: seven };
+  const grid = songGrid(song);
+  assert.equal(grid.pulsesPerBar, 7);
+  assert.equal(grid.unit, 8);
+  assert.equal(songSeconds(song), 16);
+  assert.deepEqual(barBeat(2.1, grid), { bar: 2, beat: 1 });
+  assert.equal(counterText(3.9, grid), "002.7");
+});
+
+test("a saved song keeps its groove, and a broken groove is repaired", () => {
+  const groove = { ...presets()[2] };
+  const song = readSong(JSON.stringify({ ...defaultSong(), groove, grooveOn: true }));
+  assert.equal(song.groove?.name, "Samba");
+  assert.equal(song.grooveOn, true);
+  const repaired = readSong(JSON.stringify({ groove: { meter: { top: 99 } } }));
+  assert.equal(repaired.groove?.name, "Rock beat");
+  assert.equal(readSong(null).groove, null);
+  assert.ok(makeMeter(4, 4, 2));
 });

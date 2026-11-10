@@ -126,6 +126,36 @@ export default function ToolArtwork({ kind }: { kind: string }) {
           />
         </>
       )}
+      {kind === "rhythm" && (
+        <>
+          {/* 7/8 grouped 2+2+3: big dots for strong, smaller for lighter. */}
+          {[3, 1, 2, 1, 2, 1, 1, 3, 1, 2, 1, 2, 1, 1].map((weight, i) => {
+            const group = i % 7 < 2 ? 0 : i % 7 < 4 ? 1 : 2;
+            const x = 34 + i * 17.5 + Math.floor(i / 7) * 8;
+            return (
+              <g key={i}>
+                <circle
+                  cx={x}
+                  cy={54}
+                  r={2.5 + weight * 3}
+                  fill="currentColor"
+                  opacity={0.3 + weight * 0.22}
+                />
+                <rect
+                  x={x - 6}
+                  y={78}
+                  width="12"
+                  height="12"
+                  rx="3"
+                  fill="currentColor"
+                  opacity={group % 2 ? 0.14 : 0.28}
+                />
+              </g>
+            );
+          })}
+          <path d="M25 94H280" stroke="currentColor" opacity=".2" />
+        </>
+      )}
       {kind === "studio" && (
         <>
           {Array.from({ length: 24 }, (_, i) => (

@@ -19,14 +19,19 @@ import { useStudioSession } from "@/context/StudioSession";
 import { formatNote } from "@/lib/noteSelection";
 import { encodeWav, recordingError } from "@/lib/toneRecording";
 import {
+  MAX_BPM,
+  MIN_BPM,
   STORAGE_KEY,
   audible,
+  quarterBpm,
   readSong,
+  songGrid,
   songSeconds,
   type SongSettings,
   type TrackSettings,
 } from "@/lib/fourTrack";
 import { TapeDeck, renderEffects } from "@/lib/tapeDeck";
+import { STORAGE_KEY as GROOVE_KEY, meterLabel, readGroove } from "@/lib/groove";
 
 type Buffers = (AudioBuffer | null)[];
 const EMPTY: Buffers = [null, null, null, null];
@@ -50,6 +55,7 @@ export default function Studio() {
   const [mode, setMode] = useState<DeckMode>("stopped");
   const [position, setPosition] = useState(0);
   const [message, setMessage] = useState("");
+  const [grooveNote, setGrooveNote] = useState("");
   // A take waiting for "yes, replace it" before it goes onto a full track.
   const [pending, setPending] = useState<{
     index: number;
@@ -59,11 +65,44 @@ export default function Studio() {
   const latest = useRef({ song, processed, mode });
   latest.current = { song, processed, mode };
   const songSec = songSeconds(song);
+  const grid = songGrid(song);
   const heard = useMemo(() => audible(song.tracks), [song.tracks]);
   const incomingTake = params.get("take");
   const incoming = shelf.takes.find((take) => take.id === incomingTake);
 
   const getDeck = () => (deck.current ??= new TapeDeck());
+
+  // A groove sent from the rhythm room: its meter and tempo become the song's.
+  const grooveArrived = params.get("groove") === "1";
+  useEffect(() => {
+    if (!grooveArrived) return;
+    let raw: string | null = null;
+    try {
+      raw = localStorage.getItem(GROOVE_KEY);
+    } catch {
+      raw = null;
+    }
+    if (raw) {
+      const groove = readGroove(raw);
+      setSong((current) => ({
+        ...current,
+        groove,
+        grooveOn: true,
+        bpm: groove.tempo,
+      }));
+      setPosition(0);
+      setMessage("");
+      const meter = meterLabel(groove.meter);
+      setGrooveNote(
+        `${groove.name === meter ? meter : `${groove.name} (${meter})`} is on the tape. It plays under your takes when GROOVE is on, and the bars now count in ${meter.split(" ")[0]}.`,
+      );
+    }
+    setParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.delete("groove");
+      return next;
+    });
+  }, [grooveArrived, setParams]);
 
   // Save the arrangement (not the audio, which lives on the shelf).
   useEffect(() => {
@@ -131,7 +170,7 @@ export default function Studio() {
                 buffer,
                 current.tracks[i].reverb,
                 current.tracks[i].echo,
-                current.bpm,
+                quarterBpm(songGrid(current)),
                 songSeconds(current) - current.tracks[i].startSec,
               ).catch(() => buffer)
             : null,
@@ -144,7 +183,7 @@ export default function Studio() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [originals, fxKey, song.bpm]);
+  }, [originals, fxKey, song.bpm, grid.unit]);
 
   const deckTracks = () =>
     latest.current.song.tracks.map((track, i) => ({
@@ -278,8 +317,9 @@ export default function Studio() {
         tracks: deckTracks(),
         fromSec: from,
         toSec: songSeconds(latest.current.song),
-        bpm: latest.current.song.bpm,
+        grid: songGrid(latest.current.song),
         click: latest.current.song.click,
+        groove: latest.current.song.grooveOn ? latest.current.song.groove : null,
       });
       setMode("playing");
     } catch {
@@ -303,7 +343,8 @@ export default function Studio() {
         ),
         fromSec: from,
         songLengthSec: songSeconds(current),
-        bpm: current.bpm,
+        grid: songGrid(current),
+        groove: current.grooveOn ? current.groove : null,
         click: current.click,
         countIn: current.countIn,
       });
@@ -404,7 +445,20 @@ export default function Studio() {
           mode={mode}
           position={position}
           songSec={songSec}
+          grid={grid}
           armedName={armedName}
+          onRemoveGroove={() =>
+            setSong((current) => ({
+              ...current,
+              groove: null,
+              grooveOn: false,
+              // Keep the same feel: an eighth-note tempo becomes its quarter-note tempo.
+              bpm: Math.round(
+                Math.min(MAX_BPM, Math.max(MIN_BPM, quarterBpm(songGrid(current)))),
+              ),
+            }))
+          }
+          onOpenRhythm={() => navigate("/rhythm")}
           onPlay={() => void play()}
           onStop={stop}
           onRecord={() => void record()}
@@ -418,6 +472,14 @@ export default function Studio() {
           }}
         />
 
+        {grooveNote && !message && (
+          <p className="recording-message tape-message" role="status">
+            {grooveNote}{" "}
+            <button className="studio-text-link" onClick={() => setGrooveNote("")}>
+              Got it
+            </button>
+          </p>
+        )}
         {message && (
           <p className="recording-message error tape-message" role="alert">
             {message}
@@ -455,6 +517,7 @@ export default function Studio() {
                 heard={heard[i]}
                 songSec={songSec}
                 bars={song.bars}
+                pulsesPerBar={grid.pulsesPerBar}
                 position={position}
                 takes={shelf.takes}
                 takeName={takeName(track.takeId)}

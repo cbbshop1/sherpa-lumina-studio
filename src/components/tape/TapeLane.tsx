@@ -15,6 +15,7 @@ type Props = {
   heard: boolean;
   songSec: number;
   bars: number;
+  pulsesPerBar: number;
   position: number;
   takes: TakeMeta[];
   takeName: string | null;
@@ -38,6 +39,7 @@ export default function TapeLane({
   heard,
   songSec,
   bars,
+  pulsesPerBar,
   position,
   takes,
   takeName,
@@ -143,6 +145,7 @@ export default function TapeLane({
         startSec={track.startSec + track.nudgeMs / 1000}
         songSec={songSec}
         bars={bars}
+        pulsesPerBar={pulsesPerBar}
         position={position}
         recording={recording}
         onSeek={onSeek}

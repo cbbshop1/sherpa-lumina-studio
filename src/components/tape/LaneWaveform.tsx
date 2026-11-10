@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import { waveformEnvelope } from "../../lib/toneRecording";
-import { BEATS_PER_BAR } from "../../lib/fourTrack";
 
 type Props = {
   original: AudioBuffer | null;
@@ -8,6 +7,7 @@ type Props = {
   startSec: number;
   songSec: number;
   bars: number;
+  pulsesPerBar: number;
   position: number;
   recording: boolean;
   onSeek: (seconds: number) => void;
@@ -52,6 +52,7 @@ export default function LaneWaveform({
   startSec,
   songSec,
   bars,
+  pulsesPerBar,
   position,
   recording,
   onSeek,
@@ -70,9 +71,9 @@ export default function LaneWaveform({
       if (!context) return;
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
       context.clearRect(0, 0, width, HEIGHT);
-      for (let beat = 0; beat <= bars * BEATS_PER_BAR; beat++) {
-        const x = Math.round((beat / (bars * BEATS_PER_BAR)) * width) + 0.5;
-        const downbeat = beat % BEATS_PER_BAR === 0;
+      for (let beat = 0; beat <= bars * pulsesPerBar; beat++) {
+        const x = Math.round((beat / (bars * pulsesPerBar)) * width) + 0.5;
+        const downbeat = beat % pulsesPerBar === 0;
         context.fillStyle = downbeat ? "#ffffff1c" : "#ffffff08";
         context.fillRect(x, 0, 1, HEIGHT);
       }
@@ -88,7 +89,7 @@ export default function LaneWaveform({
     const observer = new ResizeObserver(draw);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [original, processed, startSec, songSec, bars]);
+  }, [original, processed, startSec, songSec, bars, pulsesPerBar]);
 
   const seek = (clientX: number, element: HTMLElement) => {
     const box = element.getBoundingClientRect();
