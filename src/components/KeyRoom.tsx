@@ -17,14 +17,16 @@ import {
   MINOR_KEYS,
   STARTERS,
   keyChords,
+  keyVocabulary,
   moveToKey,
   placeInKey,
+  pointerChords,
   type KeyChord,
   type KeyMode,
 } from "../lib/keyChords";
 
 type Step = { name: string; notes: string[] };
-type Draft = { root: string; mode: KeyMode; steps: Step[] };
+type Draft = { root: string; mode: KeyMode; sevenths: boolean; steps: Step[] };
 
 const STORE = "lumina-key-room";
 const PACES = [
@@ -48,11 +50,11 @@ function readDraft(): Draft {
           step.notes.every((note) => typeof note === "string"),
       )
     )
-      return saved;
+      return { ...saved, sevenths: saved.sevenths === true };
   } catch {
     // Fall through to a fresh start.
   }
-  return { root: "C", mode: "major", steps: [] };
+  return { root: "C", mode: "major", sevenths: false, steps: [] };
 }
 
 /** Pick a key, see the chords that live in it, and string them into a progression. */
@@ -64,10 +66,17 @@ export default function KeyRoom() {
   const [running, setRunning] = useState<number | null>(null);
   const [saveName, setSaveName] = useState("");
   const clock = useRef<ReturnType<typeof setInterval> | null>(null);
-  const { root, mode, steps } = draft;
-  const chords = useMemo(() => keyChords(root, mode), [root, mode]);
+  const { root, mode, sevenths, steps } = draft;
+  const chords = useMemo(
+    () => keyChords(root, mode, sevenths),
+    [root, mode, sevenths],
+  );
+  const pointers = useMemo(() => pointerChords(root, mode), [root, mode]);
+  // Everything nameable in this key, whichever size of chord is on show.
+  const vocabulary = useMemo(() => keyVocabulary(root, mode), [root, mode]);
   const main = chords.filter((chord) => !chord.alternate);
   const extras = chords.filter((chord) => chord.alternate);
+  const shown = [...chords, ...pointers];
   const keyName = `${formatNote(root)} ${mode}`;
 
   useEffect(() => {
@@ -92,13 +101,30 @@ export default function KeyRoom() {
     const keys = nextMode === "major" ? MAJOR_KEYS : MINOR_KEYS;
     const safeRoot = keys.includes(nextRoot) ? nextRoot : keys[0];
     setDraft((current) => ({
+      ...current,
       root: safeRoot,
       mode: nextMode,
       // The progression keeps its shape and moves with the key.
       steps:
         nextMode === current.mode
-          ? moveToKey(current.steps, chords, keyChords(safeRoot, nextMode))
+          ? moveToKey(
+              current.steps,
+              vocabulary,
+              keyVocabulary(safeRoot, nextMode),
+            )
           : current.steps,
+    }));
+  };
+  const changeSize = (next: boolean) => {
+    if (next === sevenths) return;
+    session.stop();
+    const from = keyChords(root, mode, sevenths),
+      to = keyChords(root, mode, next);
+    // Chords already placed grow or shrink with the switch.
+    setDraft((current) => ({
+      ...current,
+      sevenths: next,
+      steps: moveToKey(current.steps, from, to),
     }));
   };
   const hear = (chord: Step) => {
@@ -145,19 +171,20 @@ export default function KeyRoom() {
   // What usually comes next: read from the last chord placed, or the one being heard.
   const anchor =
     steps.length > 0
-      ? placeInKey(steps[steps.length - 1], chords)
+      ? placeInKey(steps[steps.length - 1], vocabulary)
       : selection.kind === "chord"
-        ? placeInKey(selection, chords)
+        ? placeInKey(selection, vocabulary)
         : undefined;
   const leads = (chord: KeyChord) =>
     !!anchor && anchor.id !== chord.id && anchor.leadsTo.includes(chord.id);
-  const numeralOf = (step: Step) => placeInKey(step, chords)?.numeral ?? "";
+  const numeralOf = (step: Step) =>
+    placeInKey(step, vocabulary)?.numeral ?? "";
   const spelled = (chord: Step) =>
     spelledChordNotes(chord.name, chord.notes).map(formatNote).join(" · ");
   const sounding = (chord: Step) =>
     playing && selection.kind === "chord" && selection.name === chord.name;
   const outside = library.favorites.filter(
-    (favorite) => !placeInKey(favorite, chords),
+    (favorite) => !placeInKey(favorite, vocabulary),
   );
 
   const card = (chord: KeyChord) => (
@@ -215,10 +242,19 @@ export default function KeyRoom() {
             </button>
           ))}
         </div>
+        <div className="piano-mode" role="group" aria-label="Chord size">
+          <button aria-pressed={!sevenths} onClick={() => changeSize(false)}>
+            Three notes
+          </button>
+          <button aria-pressed={sevenths} onClick={() => changeSize(true)}>
+            Sevenths
+          </button>
+        </div>
         <p>
           These are the chords that live in {keyName}. Each one is built from
-          every other note of the scale. Tap a chord to hear it, and press Add
-          to place it in your progression.
+          every other note of the scale
+          {sevenths ? ", four notes high" : ""}. Tap a chord to hear it, and
+          press Add to place it in your progression.
         </p>
       </div>
 
@@ -232,6 +268,25 @@ export default function KeyRoom() {
         </div>
       )}
 
+      <div className="key-extras">
+        <span className="studio-eyebrow">CHORDS THAT POINT AT OTHER CHORDS</span>
+        <p className="key-pointer-note">
+          Each of these is the V7 of another chord in the key. The music leans
+          on that chord as if it were home for a moment, without ever changing
+          key.
+          {mode === "major"
+            ? " String them together and each seventh hands on to the next, all the way home."
+            : ""}
+        </p>
+        <div
+          className="key-chords key-pointers"
+          role="group"
+          aria-label="Sevenths that point at another chord"
+        >
+          {pointers.map(card)}
+        </div>
+      </div>
+
       <div className="key-progression" aria-label="Your progression">
         <div className="key-progression-head">
           <span className="studio-eyebrow">YOUR PROGRESSION</span>
@@ -243,7 +298,7 @@ export default function KeyRoom() {
                 onClick={() =>
                   setSteps(
                     starter.ids.map((id) => {
-                      const chord = chords.find((entry) => entry.id === id)!;
+                      const chord = shown.find((entry) => entry.id === id)!;
                       return { name: chord.name, notes: chord.notes };
                     }),
                   )
@@ -363,13 +418,17 @@ export default function KeyRoom() {
         <div className="key-map" aria-label="Where each chord usually leads">
           <span className="studio-eyebrow">WHERE EACH CHORD LEADS</span>
           <ul>
-            {chords.map((chord) => (
-              <li key={chord.id} data-current={anchor?.id === chord.id}>
+            {shown.map((chord) => (
+              <li
+                key={chord.id}
+                data-current={anchor?.id === chord.id}
+                data-pointer={chord.pointer}
+              >
                 <strong>{chord.numeral}</strong>
                 <span className="key-map-to">
                   {chord.leadsTo.length
                     ? chord.leadsTo
-                        .map((id) => chords.find((entry) => entry.id === id)!.numeral)
+                        .map((id) => shown.find((entry) => entry.id === id)!.numeral)
                         .join("  or  ")
                     : "anywhere"}
                 </span>

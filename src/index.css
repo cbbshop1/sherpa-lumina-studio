@@ -4963,3 +4963,45 @@ button.groove-count:hover {
     grid-template-columns: 36px 84px minmax(0, 1fr);
   }
 }
+
+/* Key room: sevenths and the chords that point at other chords. */
+.key-pointer-note {
+  margin: 0;
+  max-width: 760px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #9dab96;
+}
+.key-pointers {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.key-pointers .key-chord-numeral {
+  font-size: 18px;
+  color: #f1c797;
+}
+.key-chord-numeral {
+  white-space: nowrap;
+}
+.key-map li[data-pointer="true"] strong {
+  color: #f1c797;
+}
+.key-map li[data-pointer="true"]:first-of-type,
+.key-map li:not([data-pointer="true"]) + li[data-pointer="true"] {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #a6b69225;
+  border-radius: 0 0 7px 7px;
+}
+.key-map li {
+  grid-template-columns: 64px 130px minmax(0, 1fr);
+}
+@media (max-width: 860px) {
+  .key-pointers {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .key-map li {
+    grid-template-columns: 54px 96px minmax(0, 1fr);
+  }
+}

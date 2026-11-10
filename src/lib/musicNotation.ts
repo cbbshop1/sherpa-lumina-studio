@@ -84,6 +84,18 @@ export const CHORD_FORMULAS = [
     intervals: [0, 4, 7, 10, 14],
     degrees: [1, 3, 5, 7, 9],
   },
+  {
+    name: "Half-diminished 7",
+    suffix: "m7b5",
+    intervals: [0, 3, 6, 10],
+    degrees: [1, 3, 5, 7],
+  },
+  {
+    name: "Diminished 7",
+    suffix: "dim7",
+    intervals: [0, 3, 6, 9],
+    degrees: [1, 3, 5, 7],
+  },
 ];
 
 export type ScaleFormula = {

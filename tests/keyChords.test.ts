@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   keyChords,
+  keyVocabulary,
+  pointerChords,
   moveToKey,
   placeInKey,
   MAJOR_KEYS,
@@ -46,8 +48,9 @@ test("every offered key spells its seven main chords without double sharps or fl
 
 test("leads-to targets and starter progressions all point at real chords", () => {
   for (const mode of ["major", "minor"] as const) {
-    const ids = keyChords("C", mode).map((chord) => chord.id);
-    for (const chord of keyChords("C", mode))
+    const all = [...keyChords("C", mode), ...pointerChords("C", mode)];
+    const ids = all.map((chord) => chord.id);
+    for (const chord of all)
       for (const target of chord.leadsTo) assert.ok(ids.includes(target));
     for (const starter of STARTERS[mode])
       for (const id of starter.ids) assert.ok(ids.includes(id));
@@ -59,12 +62,48 @@ test("leads-to targets and starter progressions all point at real chords", () =>
 });
 
 test("a progression keeps its shape when the key changes", () => {
-  const c = keyChords("C", "major"),
-    g = keyChords("G", "major");
-  const one451 = [c[0], c[3], c[4], c[0]].map(({ name, notes }) => ({ name, notes }));
+  const c = keyVocabulary("C", "major"),
+    g = keyVocabulary("G", "major");
+  const pick = (name: string) => {
+    const chord = c.find((entry) => entry.name === name)!;
+    return { name: chord.name, notes: chord.notes };
+  };
   const outside = { name: "Ab", notes: ["G#", "C", "D#"] };
-  const moved = moveToKey([...one451, outside], c, g);
-  assert.deepEqual(moved.map((chord) => chord.name), ["G", "C", "D", "G", "Ab"]);
+  const moved = moveToKey(
+    [pick("C"), pick("F"), pick("G7"), pick("D7"), outside],
+    c,
+    g,
+  );
+  // Triads stay triads, sevenths stay sevenths, V7 of V stays V7 of V.
+  assert.deepEqual(moved.map((chord) => chord.name), ["G", "C", "D7", "A7", "Ab"]);
   // A favorite saved under its sharp name is still found in a flat key.
   assert.equal(placeInKey({ name: "A#", notes: ["A#", "D", "F"] }, keyChords("F", "major"))?.numeral, "IV");
+});
+
+test("sevenths follow the key, with V as a dominant seventh", () => {
+  assert.deepEqual(
+    keyChords("C", "major", true).map((chord) => `${chord.numeral} ${chord.name}`),
+    ["Imaj7 Cmaj7", "ii7 Dm7", "iii7 Em7", "IVmaj7 Fmaj7", "V7 G7", "vi7 Am7", "viiø7 Bm7b5"],
+  );
+  const minor = keyChords("A", "minor", true);
+  assert.equal(`${minor[4].numeral} ${minor[4].name}`, "V7 E7");
+  assert.equal(`${minor[8].numeral} ${minor[8].name}`, "vii°7 G#dim7");
+  assert.deepEqual(minor[8].notes, ["G#", "B", "D", "F"]);
+});
+
+test("pointer chords are the V7 of each chord and chain into the barbershop circle", () => {
+  const ab = pointerChords("Ab", "major");
+  assert.deepEqual(
+    ab.map((chord) => `${chord.numeral} ${chord.name}`),
+    ["V7/ii F7", "V7/iii G7", "V7/IV Ab7", "V7/V Bb7", "V7/vi C7"],
+  );
+  // F7 can resolve to ii, or hand on to Bb7, as in Meet Me Tonight in Dreamland.
+  assert.deepEqual(ab[0].leadsTo, ["2", "s5"]);
+  assert.deepEqual(ab[3].leadsTo, ["5"]);
+  const words = keyVocabulary("Ab", "major");
+  assert.equal(placeInKey({ name: "Bb7", notes: ["A#", "D", "F", "G#"] }, words)?.numeral, "V7/V");
+  assert.equal(placeInKey({ name: "Eb7", notes: ["D#", "G", "A#", "C#"] }, words)?.numeral, "V7");
+  for (const key of ["C", "F#", "Db", "Eb", "B"])
+    for (const chord of pointerChords(key, "major"))
+      assert.ok(!/##|bb/.test(chord.name), `${key}: ${chord.name}`);
 });

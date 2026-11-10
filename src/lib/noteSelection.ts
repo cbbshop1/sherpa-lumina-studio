@@ -25,7 +25,7 @@ export function voiceNotes(notes: string[], octave = 4): number[] {
 }
 export const midiToFrequency = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
 export const formatNote = (note: string) =>
-  note.replace(
+  note.replace(/m7b5$/, "m7♭5").replace(
     /^([A-G])([#b]+)/,
     (_, letter: string, accidental: string) =>
       letter +
