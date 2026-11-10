@@ -12,6 +12,7 @@ for (const route of [
   "scales",
   "progressions",
   "rhythm",
+  "chart",
   "pitch-pipe",
   "studio",
 ]) {

@@ -13,6 +13,7 @@ import {
   Radio,
   SlidersHorizontal,
   Sparkles,
+  FileMusic,
 } from "lucide-react";
 import AppNavigation from "../components/AppNavigation";
 import WhatNext from "../components/WhatNext";
@@ -76,6 +77,16 @@ const tools = [
       "Build a groove in any meter, from rock to samba to 7/8, and sing over it.",
     icon: Drum,
     color: "teal",
+  },
+  {
+    path: "/chart",
+    kind: "chart",
+    title: "The chart room",
+    label: "READ A CHART",
+    description:
+      "Bring in a score. See its four parts, hear them, and watch what the chords are doing.",
+    icon: FileMusic,
+    color: "sage",
   },
   {
     path: "/pitch-pipe",
@@ -149,7 +160,7 @@ const Index = () => {
                 <p>
                   A place for musical curiosity.
                   <br />
-                  Seven connected tools. Plenty of room to explore.
+                  Eight connected tools. Plenty of room to explore.
                 </p>
               </div>
               <div className="lumina-hero-signature" aria-hidden="true">

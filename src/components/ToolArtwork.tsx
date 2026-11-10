@@ -6,6 +6,23 @@ export default function ToolArtwork({ kind }: { kind: string }) {
       fill="none"
       aria-hidden="true"
     >
+      {kind === "chart" && (
+        <>
+          <path
+            d="M30 24H270M30 34H270M30 44H270M30 54H270M30 64H270"
+            stroke="currentColor"
+            opacity=".22"
+          />
+          {[70, 130, 190, 250].map((x, index) => (
+            <g key={x}>
+              <ellipse cx={x} cy={[34, 39, 44, 29][index]} rx="8" ry="5.5" fill="currentColor" />
+              <ellipse cx={x} cy={[54, 59, 59, 49][index]} rx="8" ry="5.5" fill="currentColor" opacity=".55" />
+            </g>
+          ))}
+          <path d="M122 84V92H258V84" stroke="currentColor" strokeWidth="2" />
+          <path d="M40 92H100" stroke="currentColor" strokeWidth="2" opacity=".4" />
+        </>
+      )}
       {kind === "piano" && (
         <>
           <path

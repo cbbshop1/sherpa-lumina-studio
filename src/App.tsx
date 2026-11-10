@@ -14,6 +14,7 @@ import { OwnSoundProvider } from "./context/OwnSoundSession";
 const queryClient = new QueryClient();
 const Studio = lazy(() => import("./pages/Studio"));
 const Rhythm = lazy(() => import("./pages/Rhythm"));
+const Chart = lazy(() => import("./pages/Chart"));
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -56,6 +57,20 @@ const App = () => (
                       }
                     >
                       <Rhythm />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/chart"
+                  element={
+                    <Suspense
+                      fallback={
+                        <div className="p-12 text-muted-foreground">
+                          Opening the chart room...
+                        </div>
+                      }
+                    >
+                      <Chart />
                     </Suspense>
                   }
                 />

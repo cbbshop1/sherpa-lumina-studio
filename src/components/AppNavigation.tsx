@@ -8,6 +8,7 @@ const destinations = [
   { path: "/scales", label: "Scales" },
   { path: "/progressions", label: "Progressions" },
   { path: "/rhythm", label: "Rhythm" },
+  { path: "/chart", label: "Chart" },
   { path: "/pitch-pipe", label: "Pitch & tone" },
   { path: "/studio", label: "Studio" },
 ];
