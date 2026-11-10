@@ -6,7 +6,31 @@ export type ToneClip = {
 };
 export type CaptureStatus = "idle" | "requesting" | "recording" | "processing";
 export const MAX_RECORD_SECONDS = 30;
-export const MAX_AUDIO_BYTES = 12 * 1024 * 1024;
+/** Big enough for a whole song saved as WAV; longer audio is trimmed below. */
+export const MAX_AUDIO_BYTES = 60 * 1024 * 1024;
+
+/** How many samples to keep when a file runs past the length limit. */
+export function keptFrames(
+  length: number,
+  sampleRate: number,
+  maxSeconds = MAX_RECORD_SECONDS,
+) {
+  return Math.min(length, Math.floor(maxSeconds * sampleRate));
+}
+
+/** The friendly note shown when a long file is trimmed. */
+export function trimNotice(seconds: number, maxSeconds = MAX_RECORD_SECONDS) {
+  const whole = Math.round(seconds);
+  const length = `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
+  return `That file was ${length} long, so Lumina kept the first ${maxSeconds} seconds.`;
+}
+
+/** Fades the last few milliseconds so a trimmed take doesn't end in a click. */
+export function fadeOutTail(samples: Float32Array, frames: number) {
+  const count = Math.min(frames, samples.length);
+  for (let i = 0; i < count; i++)
+    samples[samples.length - count + i] *= 1 - (i + 1) / count;
+}
 
 // Give microphone takes a portable PCM file with a finite duration and seek bar.
 export function encodeWav(

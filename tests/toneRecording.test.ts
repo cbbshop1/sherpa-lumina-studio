@@ -224,3 +224,19 @@ test("downloadable WAV keeps stereo sample order, duration metadata and clipped 
   assert.equal(view.getInt16(48, true), 16384);
   assert.equal(view.getInt16(50, true), -16384);
 });
+
+test("long files keep their first 30 seconds instead of being turned away", async () => {
+  const { keptFrames, trimNotice, fadeOutTail, MAX_AUDIO_BYTES } = await import(
+    "../src/lib/toneRecording.ts"
+  );
+  assert.equal(keptFrames(48000 * 222, 48000), 48000 * 30);
+  assert.equal(keptFrames(48000 * 12, 48000), 48000 * 12);
+  assert.equal(
+    trimNotice(222.4),
+    "That file was 3:42 long, so Lumina kept the first 30 seconds.",
+  );
+  assert.equal(MAX_AUDIO_BYTES, 60 * 1024 * 1024);
+  const samples = new Float32Array(10).fill(1);
+  fadeOutTail(samples, 4);
+  assert.deepEqual(Array.from(samples.slice(5)), [1, 0.75, 0.5, 0.25, 0]);
+});

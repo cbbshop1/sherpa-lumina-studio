@@ -6,6 +6,10 @@ import {
   ToneCapture,
   MAX_RECORD_SECONDS,
   MAX_AUDIO_BYTES,
+  encodeWav,
+  fadeOutTail,
+  keptFrames,
+  trimNotice,
   audioExtension,
   recordingError,
   type CaptureStatus,
@@ -20,7 +24,8 @@ export default function OwnSoundRecorder() {
   const { clip, setClip, takes, openTake } = useOwnSound();
   const { stop: stopPreview, selection } = useStudioSession();
   const [status, setStatus] = useState<CaptureStatus>("idle"),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [notice, setNotice] = useState("");
   const [captureAnalyser, setCaptureAnalyser] = useState<AnalyserNode | null>(
     null,
   );
@@ -101,12 +106,14 @@ export default function OwnSoundRecorder() {
     audio.current?.pause();
     stopPreview();
     setError("");
+    setNotice("");
     void capture.current?.start();
   };
   const importFile = async (selected: File) => {
+    setNotice("");
     if (selected.size > MAX_AUDIO_BYTES) {
       setError(
-        "Choose an audio file smaller than 12 MB and up to 30 seconds long.",
+        "That file is very large. Choose an audio file under 60 MB, such as an MP3.",
       );
       return;
     }
@@ -121,9 +128,28 @@ export default function OwnSoundRecorder() {
       const buffer = await context.decodeAudioData(
         await selected.arrayBuffer(),
       );
-      if (buffer.duration > MAX_RECORD_SECONDS + 0.1)
-        throw new Error("too-long");
-      if (token === importToken.current)
+      if (token !== importToken.current) return;
+      if (buffer.duration > MAX_RECORD_SECONDS + 0.1) {
+        // Keep the opening of a long file instead of turning it away.
+        const frames = keptFrames(buffer.length, buffer.sampleRate);
+        const trimmed = context.createBuffer(
+          buffer.numberOfChannels,
+          frames,
+          buffer.sampleRate,
+        );
+        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+          const samples = buffer.getChannelData(channel).slice(0, frames);
+          fadeOutTail(samples, Math.round(buffer.sampleRate * 0.03));
+          trimmed.copyToChannel(samples, channel);
+        }
+        setClip({
+          blob: new Blob([encodeWav(trimmed)], { type: "audio/wav" }),
+          buffer: trimmed,
+          name: selected.name,
+          extension: "wav",
+        });
+        setNotice(trimNotice(buffer.duration));
+      } else
         setClip({
           blob: selected,
           buffer,
@@ -134,11 +160,7 @@ export default function OwnSoundRecorder() {
         });
     } catch (error) {
       if (mounted.current && token === importToken.current)
-        setError(
-          (error as Error).message === "too-long"
-            ? "Choose a recording up to 30 seconds long so you can look closely at a few notes."
-            : recordingError(error),
-        );
+        setError(recordingError(error));
     } finally {
       void context?.close().catch(() => {});
       if (mounted.current && token === importToken.current) setImporting(false);
@@ -180,6 +202,7 @@ export default function OwnSoundRecorder() {
       onTake={(id) => {
         audio.current?.pause();
         setError("");
+        setNotice("");
         void openTake(id);
       }}
     >
@@ -189,8 +212,8 @@ export default function OwnSoundRecorder() {
             <p className="studio-eyebrow">YOUR VOICE. YOUR INSTRUMENT.</p>
             <h2>Give your own sound a shape.</h2>
             <p>
-              Sing or play a few notes. Record up to 30 seconds, then look
-              closer.
+              Sing or play a few notes, or bring in a song. You get up to 30
+              seconds (longer files keep their opening), then look closer.
             </p>
             {selection.name && (
               <p className="own-sound-target">
@@ -282,6 +305,11 @@ export default function OwnSoundRecorder() {
         {error && (
           <p className="recording-message error" role="alert">
             {error}
+          </p>
+        )}
+        {notice && !error && (
+          <p className="recording-message" role="status">
+            {notice}
           </p>
         )}
         <div
