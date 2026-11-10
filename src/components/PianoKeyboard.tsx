@@ -9,7 +9,8 @@ import {
 import { Radio, RotateCcw } from "lucide-react";
 import { useStudioSession } from "../context/StudioSession";
 import { useMidiSession } from "../context/MidiSession";
-import { NOTE_NAMES, voiceNotes } from "../lib/noteSelection";
+import { NOTE_NAMES, formatNote, voiceNotes } from "../lib/noteSelection";
+import { FLAT_NAMES } from "../lib/staffNotation";
 import { selectionNoteLabels } from "../lib/musicNotation";
 import { pianoSelection } from "../lib/pianoSelection";
 import InstrumentSelector from "./InstrumentSelector";
@@ -104,7 +105,12 @@ export default function PianoKeyboard() {
   };
   const keyLabel = (note: number) => {
     const index = selectedNotes.indexOf(NOTE_NAMES[note % 12]);
-    return index >= 0 ? labels[index] : NOTE_NAMES[note % 12].replace("#", "♯");
+    if (index >= 0) return labels[index];
+    // With nothing chosen a black key has two equally good names, so show both.
+    const sharp = NOTE_NAMES[note % 12];
+    return sharp.includes("#")
+      ? `${formatNote(sharp)} ${formatNote(FLAT_NAMES[note % 12])}`
+      : sharp;
   };
   const keyProps = (note: number) => ({
     type: "button" as const,

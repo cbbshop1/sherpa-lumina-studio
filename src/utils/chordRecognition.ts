@@ -73,6 +73,11 @@ export function recognizeChord(selectedNotes: string[]): ChordInfo | null {
   // Remove duplicates
   const uniqueSemitones = [...new Set(semitones)];
 
+  // Notes arrive lowest first. Try the lowest note as the root before the
+  // others, so D F A C reads as Dm7 and not F6.
+  const bass = uniqueSemitones.indexOf(noteToSemitone[selectedNotes[0]]);
+  if (bass > 0) uniqueSemitones.unshift(...uniqueSemitones.splice(bass, 1));
+
   // Try all possible root notes (inversions)
   for (let inversionIndex = 0; inversionIndex < uniqueSemitones.length; inversionIndex++) {
     const rootSemitone = uniqueSemitones[inversionIndex];
@@ -105,7 +110,9 @@ export function recognizeChord(selectedNotes: string[]): ChordInfo | null {
   };
 }
 
-function arraysEqual(a: number[], b: number[]): boolean {
+function arraysEqual(a: number[], pattern: number[]): boolean {
+  // Fold ninths into the octave so they can match what was played.
+  const b = pattern.map((interval) => interval % 12).sort((x, y) => x - y);
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     if (a[i] !== b[i]) return false;

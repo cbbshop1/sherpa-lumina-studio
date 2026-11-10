@@ -13,7 +13,11 @@ export type Room =
   | "studio";
 
 /** Things the strip does on the spot instead of moving to another room. */
-export type StepAction = "play-target" | "show-spectrum" | "show-waveform";
+export type StepAction =
+  | "play-target"
+  | "show-spectrum"
+  | "show-waveform"
+  | "show-pitch";
 
 export type NextStep = {
   id: string;
@@ -31,7 +35,7 @@ export type StepState = {
   /** The open take's shelf id, so it can be carried to the four-track. */
   takeId?: string | null;
   /** Own-sound view only: which picture of the take is showing. */
-  scope?: "waveform" | "spectrum";
+  scope?: "pitch" | "waveform" | "spectrum";
 };
 
 const RECORD = "/pitch-pipe?view=waveform&source=microphone";
@@ -80,7 +84,14 @@ export function nextSteps(room: Room, state: StepState): NextStep[] {
       });
     if (state.hasTake)
       steps.push(
-        state.scope === "spectrum"
+        state.scope === "waveform"
+          ? {
+              id: "pitch",
+              label: "Check your pitch",
+              hint: "See which notes you sang and how close you came.",
+              action: "show-pitch",
+            }
+          : state.scope === "spectrum"
           ? {
               id: "waveform",
               label: "Back to the waveform",
@@ -125,7 +136,7 @@ export function nextSteps(room: Room, state: StepState): NextStep[] {
   steps.push({
     id: "record",
     label: `Sing ${it} and record`,
-    hint: "Hear it, sing it back, and see your waveform.",
+    hint: "Hear it, sing it back, and see how close you came.",
     to: RECORD,
   });
   if (room !== "see-the-sound")

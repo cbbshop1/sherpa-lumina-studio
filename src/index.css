@@ -1729,6 +1729,10 @@ input[type="range"] {
 .piano-keybed .piano-black-key > span {
   font-size: 10px;
   bottom: 12px;
+  /* Two names (C♯ D♭) stack, one above the other. */
+  word-spacing: 100vw;
+  line-height: 1.3;
+  text-align: center;
 }
 .piano-white-key[data-selected="true"] {
   background: linear-gradient(#d7dfc1, #dce7cb);
@@ -4367,4 +4371,75 @@ button.groove-count:hover {
 }
 .deck-groove-remove:hover:not(:disabled) {
   background: #00000020;
+}
+
+/* Pitch line: a take's sung pitch drawn against the notes being aimed for. */
+.pitch-line canvas:first-of-type,
+.pitch-line canvas:last-of-type {
+  cursor: default;
+}
+.pitch-verdict {
+  margin: 16px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #eef1e2;
+}
+.pitch-notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+}
+.pitch-notes li {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid #a5b58f35;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #c7d0b6;
+}
+.pitch-notes li strong {
+  font-size: 14px;
+  color: #eef1e2;
+}
+.pitch-notes li[data-fit="on"] {
+  border-color: #8fd0c270;
+}
+.pitch-notes li[data-fit="near"] {
+  border-color: #e7b17e70;
+}
+.pitch-notes li[data-fit="off"] {
+  border-color: #d5807070;
+}
+.pitch-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 14px;
+  font:
+    10px "Courier New",
+    monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #839b7c;
+}
+.pitch-key span::before {
+  content: "";
+  display: inline-block;
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  margin-right: 7px;
+  vertical-align: middle;
+  background: #8fd0c2;
+}
+.pitch-key span[data-fit="near"]::before {
+  background: #e7b17e;
+}
+.pitch-key span[data-fit="off"]::before {
+  background: #d58070;
 }

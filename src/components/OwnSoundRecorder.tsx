@@ -16,6 +16,7 @@ import {
 } from "../lib/toneRecording";
 import SoundScope from "./SoundScope";
 import ClipWaveform from "./ClipWaveform";
+import PitchLine from "./PitchLine";
 import WhatNext from "./WhatNext";
 import TakeDropZone from "./TakeDropZone";
 import { formatNote } from "../lib/noteSelection";
@@ -33,7 +34,10 @@ export default function OwnSoundRecorder() {
     null,
   );
   const [playing, setPlaying] = useState(false),
-    [mode, setMode] = useState<"waveform" | "spectrum">("waveform");
+    // With something to sing back, open on the picture that answers "how did I do?"
+    [mode, setMode] = useState<"pitch" | "waveform" | "spectrum">(() =>
+      selection.name ? "pitch" : "waveform",
+    );
   const [url, setUrl] = useState(""),
     [elapsed, setElapsed] = useState(0),
     [importing, setImporting] = useState(false);
@@ -318,6 +322,13 @@ export default function OwnSoundRecorder() {
           aria-label="Your sound visualization"
         >
           <button
+            className={mode === "pitch" ? "active" : ""}
+            aria-pressed={mode === "pitch"}
+            onClick={() => setMode("pitch")}
+          >
+            Pitch line
+          </button>
+          <button
             className={mode === "waveform" ? "active" : ""}
             aria-pressed={mode === "waveform"}
             onClick={() => setMode("waveform")}
@@ -336,9 +347,11 @@ export default function OwnSoundRecorder() {
           <SoundScope
             analyser={captureAnalyser}
             playing={true}
-            mode={mode}
+            mode={mode === "spectrum" ? "spectrum" : "waveform"}
             sourceLabel="MICROPHONE INPUT"
           />
+        ) : clip && mode === "pitch" ? (
+          <PitchLine buffer={clip.buffer} target={selection} />
         ) : clip && mode === "waveform" ? (
           <ClipWaveform buffer={clip.buffer} />
         ) : clip ? (
@@ -356,7 +369,9 @@ export default function OwnSoundRecorder() {
             <strong>A few notes are plenty.</strong>
             <p>
               Record your voice or an instrument, or import a short audio file.
-              Your waveform will stay here after you stop.
+              {selection.name
+                ? ` Your pitch line will show how close you came to ${formatNote(selection.name)}.`
+                : " Your waveform will stay here after you stop."}
               {takes.length > 0 &&
                 " Or open an earlier take from your shelf, top right."}
             </p>
@@ -394,6 +409,7 @@ export default function OwnSoundRecorder() {
             onAction={(action) => {
               if (action === "show-spectrum") setMode("spectrum");
               if (action === "show-waveform") setMode("waveform");
+              if (action === "show-pitch") setMode("pitch");
               if (action === "play-target") audio.current?.pause();
             }}
           />

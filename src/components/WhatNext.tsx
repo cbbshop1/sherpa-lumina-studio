@@ -10,7 +10,7 @@ import {
 } from "../lib/nextSteps";
 
 type Props = {
-  scope?: "waveform" | "spectrum";
+  scope?: "pitch" | "waveform" | "spectrum";
   onAction?: (action: StepAction) => void;
   className?: string;
 };

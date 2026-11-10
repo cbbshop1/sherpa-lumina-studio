@@ -78,3 +78,20 @@ test("with nothing chosen, the recorder points to a note to sing", () => {
   );
   assert.equal(steps[0].label, "Pick a note on the piano");
 });
+
+test("from the waveform, a take offers the pitch check", () => {
+  const steps = nextSteps("own-sound", {
+    ...chord,
+    hasTake: true,
+    takeId: "t1",
+    scope: "waveform",
+  });
+  assert.equal(steps[2].action, "show-pitch");
+  const onPitch = nextSteps("own-sound", {
+    ...chord,
+    hasTake: true,
+    takeId: "t1",
+    scope: "pitch",
+  });
+  assert.equal(onPitch[2].action, "show-spectrum");
+});
