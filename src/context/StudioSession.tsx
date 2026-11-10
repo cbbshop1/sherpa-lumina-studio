@@ -26,6 +26,8 @@ export type Selection = {
   frequency?: number;
   midiNotes?: number[];
   descendingNotes?: string[];
+  /** Note names as they should be written, when the name alone can't say (an interval). */
+  spellings?: string[];
 };
 const INITIAL_SOUND: SoundSettings = {
   waveform: "sine",

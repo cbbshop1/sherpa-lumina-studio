@@ -16,6 +16,7 @@ type Target = {
   notes: readonly string[];
   kind: "chord" | "note" | "scale";
   descendingNotes?: readonly string[];
+  spellings?: readonly string[];
 };
 
 const TOP = 12,

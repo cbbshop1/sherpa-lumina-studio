@@ -231,7 +231,10 @@ export function selectionNoteLabels(selection: {
   notes: readonly string[];
   kind: string;
   descending?: boolean;
+  spellings?: readonly string[];
 }): string[] {
+  if (selection.spellings?.length === selection.notes.length)
+    return selection.spellings.map(formatNote);
   if (selection.kind === "chord")
     return spelledChordNotes(selection.name, selection.notes).map(formatNote);
   if (selection.kind === "scale") {

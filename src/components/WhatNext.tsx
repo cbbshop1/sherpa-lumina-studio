@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { ArrowRight, Play } from "lucide-react";
+import { ArrowRight, Play, Square } from "lucide-react";
 import { useStudioSession } from "../context/StudioSession";
 import { useShelf } from "../context/OwnSoundSession";
 import { formatNote } from "../lib/noteSelection";
@@ -18,7 +18,7 @@ type Props = {
 /** A small strip of natural next moves that carry your work along. */
 export default function WhatNext({ scope, onAction, className = "" }: Props) {
   const { pathname, search } = useLocation();
-  const { selection, play } = useStudioSession();
+  const { selection, playing, togglePlay } = useStudioSession();
   const { clip, activeId } = useShelf();
   const room = roomFromLocation(pathname, search);
   const steps = nextSteps(room, {
@@ -30,7 +30,8 @@ export default function WhatNext({ scope, onAction, className = "" }: Props) {
   });
   if (!steps.length) return null;
   const act = (action: StepAction) => {
-    if (action === "play-target") void play();
+    // The same button starts and stops the target, since this room has no player bar.
+    if (action === "play-target") togglePlay();
     onAction?.(action);
   };
   return (
@@ -49,10 +50,15 @@ export default function WhatNext({ scope, onAction, className = "" }: Props) {
             ) : (
               <button onClick={() => step.action && act(step.action)}>
                 <strong>
-                  {step.action === "play-target" && (
-                    <Play size={12} fill="currentColor" />
-                  )}
-                  {step.label}
+                  {step.action === "play-target" &&
+                    (playing ? (
+                      <Square size={11} fill="currentColor" />
+                    ) : (
+                      <Play size={12} fill="currentColor" />
+                    ))}
+                  {step.action === "play-target" && playing
+                    ? `Stop ${formatNote(selection.name)}`
+                    : step.label}
                 </strong>
                 <span>{step.hint}</span>
               </button>

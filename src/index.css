@@ -4443,3 +4443,142 @@ button.groove-count:hover {
 .pitch-key span[data-fit="off"]::before {
   background: #d58070;
 }
+
+/* Target picker: change the note, chord, or scale without leaving the room. */
+.target-picker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 22px;
+}
+.target-picker select {
+  padding: 8px 10px;
+  border: 1px solid #a6b69240;
+  border-radius: 7px;
+  background: #1a251d;
+  color: #eef1e2;
+  font-size: 13px;
+  max-width: 100%;
+}
+.target-picker .target-hear {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border: 1px solid #e7b17e80;
+  border-radius: 7px;
+  color: #f1c797;
+  font-size: 13px;
+  font-weight: 600;
+}
+.target-picker .target-hear.on {
+  background: #e7b17e;
+  color: #1b2119;
+}
+.target-picker .target-hear:disabled {
+  opacity: 0.45;
+}
+.lumina-pitch-circle button[data-sounding="true"] {
+  box-shadow: 0 0 0 3px #e7b17e90;
+}
+
+/* Piano: octave switcher, the Two notes readout, and chord positions. */
+.octave-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.octave-switch button {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 10px;
+  border: 1px solid #a6b69240;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #c7d0b6;
+}
+.octave-switch button:disabled {
+  opacity: 0.35;
+}
+.octave-switch strong {
+  font-size: 12px;
+  color: #eef1e2;
+  white-space: nowrap;
+}
+.interval-readout,
+.inversion-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  max-width: 880px;
+  margin: 0 auto 18px;
+  padding: 14px 16px;
+  border: 1px solid #a6b69228;
+  border-radius: 10px;
+  background: #111a14;
+}
+.interval-readout > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.interval-readout strong {
+  font-size: 22px;
+  color: #f1c797;
+  line-height: 1.15;
+}
+.interval-readout p {
+  flex: 1 1 260px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #c7d0b6;
+}
+.interval-readout button,
+.inversion-row button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 1px solid #a6b69240;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #c7d0b6;
+}
+.interval-readout button {
+  border-color: #e7b17e80;
+  color: #f1c797;
+}
+.inversion-row button[aria-pressed="true"] {
+  background: #c9d6a5;
+  border-color: #c9d6a5;
+  color: #1b2119;
+  font-weight: 600;
+}
+.inversion-name {
+  font-size: 13px;
+  color: #eef1e2;
+}
+.piano-keybed button > em.piano-step {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 18px;
+  padding: 1px 4px;
+  border-radius: 9px;
+  background: #e7b17e;
+  color: #1b2119;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 16px;
+  pointer-events: none;
+}
+.piano-keybed .piano-white-key > em.piano-step {
+  top: auto;
+  bottom: 44px;
+}

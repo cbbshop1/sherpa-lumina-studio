@@ -6,6 +6,7 @@ import { SessionBar, useStopOnNavigation } from "../components/StudioChrome";
 import SoundScope from "../components/SoundScope";
 import OwnSoundRecorder from "../components/OwnSoundRecorder";
 import WhatNext from "../components/WhatNext";
+import TargetPicker from "../components/TargetPicker";
 import TakeDropZone from "../components/TakeDropZone";
 import { useOwnSound } from "../context/OwnSoundSession";
 import { selectionNoteLabels } from "../lib/musicNotation";
@@ -157,6 +158,15 @@ const PitchPipe = () => {
             </p>
           </div>
           {!ownSound && <WhatNext />}
+          <TargetPicker
+            label={
+              ownSound
+                ? "SINGING"
+                : view === "circle"
+                  ? "START FROM"
+                  : "LISTENING TO"
+            }
+          />
           {view === "waveform" && (
             <div
               className="sound-source-switch"
@@ -230,14 +240,24 @@ const PitchPipe = () => {
                             className={
                               s.selection.notes.includes(note) ? "selected" : ""
                             }
-                            aria-label={`Select ${noteLabel(note)}${s.octave}`}
+                            aria-label={`${
+                              s.playing &&
+                              s.selection.kind === "note" &&
+                              s.selection.notes[0] === note
+                                ? "Stop"
+                                : "Play"
+                            } ${noteLabel(note)}${s.octave}`}
                             aria-pressed={s.selection.notes.includes(note)}
+                            data-sounding={
+                              s.playing && s.selection.notes.includes(note)
+                            }
                             style={{
                               left: `${50 + Math.cos(a) * 42}%`,
                               top: `${50 + Math.sin(a) * 42}%`,
                             }}
+                            // One click sounds the note; the same click again stops it.
                             onClick={() =>
-                              s.select({
+                              s.togglePlay({
                                 name: `${noteLabel(note)}${s.octave}`,
                                 notes: [note],
                                 kind: "note",
@@ -251,8 +271,8 @@ const PitchPipe = () => {
                     </div>
                     <div className="pitch-circle-caption">
                       <span>
-                        Pick a note, then press Play. Click another to change
-                        the pitch.
+                        Click a note to hear it. Click it again to stop, or
+                        click another to change the pitch.
                       </span>
                       <label>
                         Octave
