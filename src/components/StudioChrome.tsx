@@ -126,7 +126,7 @@ export function SelectionPreview() {
         </label>
       )}
       <Link className="studio-text-link" to="/piano">
-        View on the existing piano <ArrowUpRight size={15} />
+        See it on the piano <ArrowUpRight size={15} />
       </Link>
       <button
         className="clear-selection"

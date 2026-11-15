@@ -24,7 +24,7 @@ export default function ClipWaveform({ buffer }: { buffer: AudioBuffer }) {
     const context = overview.current?.getContext("2d");
     if (!context) return;
     context.clearRect(0, 0, 1000, 160);
-    context.fillStyle = "#d9b17c";
+    context.fillStyle = "#bba47c";
     envelope.forEach((bin, i) => {
       context.fillRect(
         (i / envelope.length) * 1000,
@@ -33,7 +33,7 @@ export default function ClipWaveform({ buffer }: { buffer: AudioBuffer }) {
         Math.max(1, (bin.max - bin.min) * 70),
       );
     });
-    context.fillStyle = "#d5807050";
+    context.fillStyle = "#bba47c50";
     context.fillRect(
       (slice.startSeconds / buffer.duration) * 1000,
       0,
@@ -45,7 +45,7 @@ export default function ClipWaveform({ buffer }: { buffer: AudioBuffer }) {
     const context = detail.current?.getContext("2d");
     if (!context) return;
     context.clearRect(0, 0, 1000, 230);
-    context.strokeStyle = "#829a8440";
+    context.strokeStyle = "#bba47c40";
     context.lineWidth = 1;
     for (let y = 35; y < 230; y += 40) {
       context.beginPath();
@@ -53,7 +53,7 @@ export default function ClipWaveform({ buffer }: { buffer: AudioBuffer }) {
       context.lineTo(1000, y);
       context.stroke();
     }
-    context.strokeStyle = "#e7b17e";
+    context.strokeStyle = "#bba47c";
     context.lineWidth = 2;
     context.beginPath();
     const step = Math.max(1, Math.floor(slice.samples.length / 2000));

@@ -26,6 +26,8 @@ export type Selection = {
   frequency?: number;
   midiNotes?: number[];
   descendingNotes?: string[];
+  /** Note names as they should be written, when the name alone can't say (an interval). */
+  spellings?: string[];
 };
 const INITIAL_SOUND: SoundSettings = {
   waveform: "sine",
@@ -129,9 +131,11 @@ function useSessionState() {
           frequencies,
           value.sound,
           value.strum,
-          value.pathname.replace(/\/+$/, "") === "/piano"
-            ? value.instrument
-            : undefined,
+          // The chosen instrument plays everywhere except Pitch & tone, where
+          // the plain tone and its shaping controls are the subject.
+          value.pathname.replace(/\/+$/, "") === "/pitch-pipe"
+            ? undefined
+            : value.instrument,
           sequence?.timing,
         );
         if (token !== request.current || !started) return;

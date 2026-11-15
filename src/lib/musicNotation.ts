@@ -84,6 +84,18 @@ export const CHORD_FORMULAS = [
     intervals: [0, 4, 7, 10, 14],
     degrees: [1, 3, 5, 7, 9],
   },
+  {
+    name: "Half-diminished 7",
+    suffix: "m7b5",
+    intervals: [0, 3, 6, 10],
+    degrees: [1, 3, 5, 7],
+  },
+  {
+    name: "Diminished 7",
+    suffix: "dim7",
+    intervals: [0, 3, 6, 9],
+    degrees: [1, 3, 5, 7],
+  },
 ];
 
 export type ScaleFormula = {
@@ -231,7 +243,10 @@ export function selectionNoteLabels(selection: {
   notes: readonly string[];
   kind: string;
   descending?: boolean;
+  spellings?: readonly string[];
 }): string[] {
+  if (selection.spellings?.length === selection.notes.length)
+    return selection.spellings.map(formatNote);
   if (selection.kind === "chord")
     return spelledChordNotes(selection.name, selection.notes).map(formatNote);
   if (selection.kind === "scale") {

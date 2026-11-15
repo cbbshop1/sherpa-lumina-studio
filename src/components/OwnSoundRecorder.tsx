@@ -6,18 +6,27 @@ import {
   ToneCapture,
   MAX_RECORD_SECONDS,
   MAX_AUDIO_BYTES,
+  encodeWav,
+  fadeOutTail,
+  keptFrames,
+  trimNotice,
   audioExtension,
   recordingError,
   type CaptureStatus,
 } from "../lib/toneRecording";
 import SoundScope from "./SoundScope";
 import ClipWaveform from "./ClipWaveform";
+import PitchLine from "./PitchLine";
+import WhatNext from "./WhatNext";
+import TakeDropZone from "./TakeDropZone";
+import { formatNote } from "../lib/noteSelection";
 
 export default function OwnSoundRecorder() {
-  const { clip, setClip } = useOwnSound();
-  const { stop: stopPreview } = useStudioSession();
+  const { clip, setClip, takes, openTake } = useOwnSound();
+  const { stop: stopPreview, selection } = useStudioSession();
   const [status, setStatus] = useState<CaptureStatus>("idle"),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [notice, setNotice] = useState("");
   const [captureAnalyser, setCaptureAnalyser] = useState<AnalyserNode | null>(
     null,
   );
@@ -25,7 +34,10 @@ export default function OwnSoundRecorder() {
     null,
   );
   const [playing, setPlaying] = useState(false),
-    [mode, setMode] = useState<"waveform" | "spectrum">("waveform");
+    // With something to sing back, open on the picture that answers "how did I do?"
+    [mode, setMode] = useState<"pitch" | "waveform" | "spectrum">(() =>
+      selection.name ? "pitch" : "waveform",
+    );
   const [url, setUrl] = useState(""),
     [elapsed, setElapsed] = useState(0),
     [importing, setImporting] = useState(false);
@@ -98,12 +110,14 @@ export default function OwnSoundRecorder() {
     audio.current?.pause();
     stopPreview();
     setError("");
+    setNotice("");
     void capture.current?.start();
   };
   const importFile = async (selected: File) => {
+    setNotice("");
     if (selected.size > MAX_AUDIO_BYTES) {
       setError(
-        "Choose an audio file smaller than 12 MB and up to 30 seconds long.",
+        "That file is very large. Choose an audio file under 60 MB, such as an MP3.",
       );
       return;
     }
@@ -118,9 +132,28 @@ export default function OwnSoundRecorder() {
       const buffer = await context.decodeAudioData(
         await selected.arrayBuffer(),
       );
-      if (buffer.duration > MAX_RECORD_SECONDS + 0.1)
-        throw new Error("too-long");
-      if (token === importToken.current)
+      if (token !== importToken.current) return;
+      if (buffer.duration > MAX_RECORD_SECONDS + 0.1) {
+        // Keep the opening of a long file instead of turning it away.
+        const frames = keptFrames(buffer.length, buffer.sampleRate);
+        const trimmed = context.createBuffer(
+          buffer.numberOfChannels,
+          frames,
+          buffer.sampleRate,
+        );
+        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+          const samples = buffer.getChannelData(channel).slice(0, frames);
+          fadeOutTail(samples, Math.round(buffer.sampleRate * 0.03));
+          trimmed.copyToChannel(samples, channel);
+        }
+        setClip({
+          blob: new Blob([encodeWav(trimmed)], { type: "audio/wav" }),
+          buffer: trimmed,
+          name: selected.name,
+          extension: "wav",
+        });
+        setNotice(trimNotice(buffer.duration));
+      } else
         setClip({
           blob: selected,
           buffer,
@@ -131,11 +164,7 @@ export default function OwnSoundRecorder() {
         });
     } catch (error) {
       if (mounted.current && token === importToken.current)
-        setError(
-          (error as Error).message === "too-long"
-            ? "Choose a recording up to 30 seconds long so you can look closely at a few notes."
-            : recordingError(error),
-        );
+        setError(recordingError(error));
     } finally {
       void context?.close().catch(() => {});
       if (mounted.current && token === importToken.current) setImporting(false);
@@ -171,180 +200,226 @@ export default function OwnSoundRecorder() {
     }
   };
   return (
-    <section className="own-sound" aria-label="Your own sound">
-      <div className="own-sound-intro">
-        <div>
-          <p className="studio-eyebrow">YOUR VOICE. YOUR INSTRUMENT.</p>
-          <h2>Give your own sound a shape.</h2>
-          <p>
-            Sing or play a few notes. Record up to 30 seconds, then look closer.
-          </p>
-        </div>
-        <span
-          className={`recording-status ${status === "recording" ? "recording" : ""}`}
-          role="status"
-        >
-          {status === "requesting"
-            ? "Waiting for microphone permission"
-            : status === "recording"
-              ? "Microphone recording"
-              : status === "processing" || importing
-                ? "Preparing your sound…"
-                : "Microphone off"}
-        </span>
-      </div>
-      <div className="recording-actions">
-        {status === "recording" ? (
-          <button
-            className="record-button recording"
-            onClick={() => capture.current?.stop()}
+    <TakeDropZone
+      label="Drop to analyze this take"
+      disabled={busy}
+      onTake={(id) => {
+        audio.current?.pause();
+        setError("");
+        setNotice("");
+        void openTake(id);
+      }}
+    >
+      <section className="own-sound" aria-label="Your own sound">
+        <div className="own-sound-intro">
+          <div>
+            <p className="studio-eyebrow">YOUR VOICE. YOUR INSTRUMENT.</p>
+            <h2>Give your own sound a shape.</h2>
+            <p>
+              Sing or play a few notes, or bring in a song. You get up to 30
+              seconds (longer files keep their opening), then look closer.
+            </p>
+            {selection.name && (
+              <p className="own-sound-target">
+                Singing along with <strong>{formatNote(selection.name)}</strong>
+              </p>
+            )}
+          </div>
+          <span
+            className={`recording-status ${status === "recording" ? "recording" : ""}`}
+            role="status"
           >
-            <Square size={15} fill="currentColor" /> Stop recording
-          </button>
-        ) : status === "requesting" ? (
-          <button onClick={() => capture.current?.stop()}>
-            Cancel microphone request
-          </button>
-        ) : (
-          <button
-            className="record-button"
-            disabled={!supported || busy}
-            onClick={start}
-          >
-            <Mic size={16} /> {clip ? "Record a new take" : "Record my sound"}
-          </button>
-        )}
-        <button disabled={busy} onClick={() => file.current?.click()}>
-          <Upload size={15} /> Import audio
-        </button>
-        <input
-          ref={file}
-          type="file"
-          accept="audio/*,.wav,.mp3,.m4a,.webm,.ogg"
-          aria-label="Import an audio recording"
-          className="sr-only"
-          onChange={(event) => {
-            const selected = event.target.files?.[0];
-            event.target.value = "";
-            if (selected) void importFile(selected);
-          }}
-        />
-        {clip && (
-          <>
-            <a href={url} download={`lumina-my-sound.${clip.extension}`}>
-              <Download size={15} /> Download recording
-            </a>
-            <button
-              disabled={busy}
-              onClick={() => {
-                audio.current?.pause();
-                setClip(null);
-                setError("");
-              }}
-            >
-              Clear recording
-            </button>
-          </>
-        )}
-      </div>
-      {status === "recording" && (
-        <div className="recording-progress">
-          <progress max={MAX_RECORD_SECONDS} value={elapsed} />
-          <span>
-            {elapsed.toFixed(1)} / {MAX_RECORD_SECONDS} s
+            {status === "requesting"
+              ? "Waiting for microphone permission"
+              : status === "recording"
+                ? "Microphone recording"
+                : status === "processing" || importing
+                  ? "Preparing your sound…"
+                  : "Microphone off"}
           </span>
         </div>
-      )}
-      {!supported && (
-        <p className="recording-message">
-          Microphone recording is unavailable in this browser. You can still
-          import a short recording.
-        </p>
-      )}
-      {error && (
-        <p className="recording-message error" role="alert">
-          {error}
-        </p>
-      )}
-      <div
-        className="scope-switch"
-        role="group"
-        aria-label="Your sound visualization"
-      >
-        <button
-          className={mode === "waveform" ? "active" : ""}
-          aria-pressed={mode === "waveform"}
-          onClick={() => setMode("waveform")}
-        >
-          Waveform
-        </button>
-        <button
-          className={mode === "spectrum" ? "active" : ""}
-          aria-pressed={mode === "spectrum"}
-          onClick={() => setMode("spectrum")}
-        >
-          Spectrum
-        </button>
-      </div>
-      {status === "recording" ? (
-        <SoundScope
-          analyser={captureAnalyser}
-          playing={true}
-          mode={mode}
-          sourceLabel="MICROPHONE INPUT"
-        />
-      ) : clip && mode === "waveform" ? (
-        <ClipWaveform buffer={clip.buffer} />
-      ) : clip ? (
-        <SoundScope
-          analyser={playbackAnalyser}
-          playing={playing}
-          mode="spectrum"
-          sourceLabel="YOUR RECORDING"
-          emptyTitle="Look inside your tone."
-          emptyHint="Press Play on your recording to see its frequency spectrum."
-        />
-      ) : (
-        <div className="recording-empty">
-          <AudioLines size={38} strokeWidth={1} />
-          <strong>A few notes are plenty.</strong>
-          <p>
-            Record your voice or an instrument, or import a short audio file.
-            Your waveform will stay here after you stop.
-          </p>
-        </div>
-      )}
-      {clip && (
-        <div className="recording-playback">
-          <div>
-            <strong>{clip.name}</strong>
-            <span>
-              {clip.buffer.duration.toFixed(2)} seconds ·{" "}
-              {clip.buffer.numberOfChannels === 1 ? "mono" : "stereo"}
-            </span>
-          </div>
-          <audio
-            ref={audio}
-            controls={!busy}
-            src={url || undefined}
-            aria-label="Your recording playback"
-            onPlay={() => void startPlayback()}
-            onPause={() => setPlaying(false)}
-            onEnded={() => setPlaying(false)}
-            onError={() => {
-              if (url)
-                setError(
-                  "This browser could not play the recording. Download it or try another audio format.",
-                );
+        <div className="recording-actions">
+          {status === "recording" ? (
+            <button
+              className="record-button recording"
+              onClick={() => capture.current?.stop()}
+            >
+              <Square size={15} fill="currentColor" /> Stop recording
+            </button>
+          ) : status === "requesting" ? (
+            <button onClick={() => capture.current?.stop()}>
+              Cancel microphone request
+            </button>
+          ) : (
+            <button
+              className="record-button"
+              disabled={!supported || busy}
+              onClick={start}
+            >
+              <Mic size={16} /> {clip ? "Record a new take" : "Record my sound"}
+            </button>
+          )}
+          <button disabled={busy} onClick={() => file.current?.click()}>
+            <Upload size={15} /> Import audio
+          </button>
+          <input
+            ref={file}
+            type="file"
+            accept="audio/*,.wav,.mp3,.m4a,.webm,.ogg"
+            aria-label="Import an audio recording"
+            className="sr-only"
+            onChange={(event) => {
+              const selected = event.target.files?.[0];
+              event.target.value = "";
+              if (selected) void importFile(selected);
             }}
           />
+          {clip && (
+            <>
+              <a href={url} download={`${clip.name}.${clip.extension}`}>
+                <Download size={15} /> Download recording
+              </a>
+              <button
+                disabled={busy}
+                onClick={() => {
+                  audio.current?.pause();
+                  setClip(null);
+                  setError("");
+                }}
+              >
+                Put it back on the shelf
+              </button>
+            </>
+          )}
         </div>
-      )}
-      <p className="recording-footnote">
-        Recordings stay in this browser tab while you explore Lumina. Download a
-        take to keep it before closing or refreshing. Your microphone turns off
-        when you stop, leave this view, or press Escape.
-      </p>
-    </section>
+        {status === "recording" && (
+          <div className="recording-progress">
+            <progress max={MAX_RECORD_SECONDS} value={elapsed} />
+            <span>
+              {elapsed.toFixed(1)} / {MAX_RECORD_SECONDS} s
+            </span>
+          </div>
+        )}
+        {!supported && (
+          <p className="recording-message">
+            Microphone recording is unavailable in this browser. You can still
+            import a short recording.
+          </p>
+        )}
+        {error && (
+          <p className="recording-message error" role="alert">
+            {error}
+          </p>
+        )}
+        {notice && !error && (
+          <p className="recording-message" role="status">
+            {notice}
+          </p>
+        )}
+        <div
+          className="scope-switch"
+          role="group"
+          aria-label="Your sound visualization"
+        >
+          <button
+            className={mode === "pitch" ? "active" : ""}
+            aria-pressed={mode === "pitch"}
+            onClick={() => setMode("pitch")}
+          >
+            Pitch line
+          </button>
+          <button
+            className={mode === "waveform" ? "active" : ""}
+            aria-pressed={mode === "waveform"}
+            onClick={() => setMode("waveform")}
+          >
+            Waveform
+          </button>
+          <button
+            className={mode === "spectrum" ? "active" : ""}
+            aria-pressed={mode === "spectrum"}
+            onClick={() => setMode("spectrum")}
+          >
+            Spectrum
+          </button>
+        </div>
+        {status === "recording" ? (
+          <SoundScope
+            analyser={captureAnalyser}
+            playing={true}
+            mode={mode === "spectrum" ? "spectrum" : "waveform"}
+            sourceLabel="MICROPHONE INPUT"
+          />
+        ) : clip && mode === "pitch" ? (
+          <PitchLine buffer={clip.buffer} target={selection} />
+        ) : clip && mode === "waveform" ? (
+          <ClipWaveform buffer={clip.buffer} />
+        ) : clip ? (
+          <SoundScope
+            analyser={playbackAnalyser}
+            playing={playing}
+            mode="spectrum"
+            sourceLabel="YOUR RECORDING"
+            emptyTitle="Look inside your tone."
+            emptyHint="Press Play on your recording to see its frequency spectrum."
+          />
+        ) : (
+          <div className="recording-empty">
+            <AudioLines size={38} strokeWidth={1} />
+            <strong>A few notes are plenty.</strong>
+            <p>
+              Record your voice or an instrument, or import a short audio file.
+              {selection.name
+                ? ` Your pitch line will show how close you came to ${formatNote(selection.name)}.`
+                : " Your waveform will stay here after you stop."}
+              {takes.length > 0 &&
+                " Or open an earlier take from your shelf, top right."}
+            </p>
+          </div>
+        )}
+        {clip && (
+          <div className="recording-playback">
+            <div>
+              <strong>{clip.name}</strong>
+              <span>
+                {clip.buffer.duration.toFixed(2)} seconds ·{" "}
+                {clip.buffer.numberOfChannels === 1 ? "mono" : "stereo"}
+              </span>
+            </div>
+            <audio
+              ref={audio}
+              controls={!busy}
+              src={url || undefined}
+              aria-label="Your recording playback"
+              onPlay={() => void startPlayback()}
+              onPause={() => setPlaying(false)}
+              onEnded={() => setPlaying(false)}
+              onError={() => {
+                if (url)
+                  setError(
+                    "This browser could not play the recording. Download it or try another audio format.",
+                  );
+              }}
+            />
+          </div>
+        )}
+        {status === "idle" && !importing && (
+          <WhatNext
+            scope={mode}
+            onAction={(action) => {
+              if (action === "show-spectrum") setMode("spectrum");
+              if (action === "show-waveform") setMode("waveform");
+              if (action === "show-pitch") setMode("pitch");
+              if (action === "play-target") audio.current?.pause();
+            }}
+          />
+        )}
+        <p className="recording-footnote">
+          Every take goes on your shelf (top right), where it stays in this
+          browser until you delete it. Nothing is uploaded. Your microphone
+          turns off when you stop, leave this view, or press Escape.
+        </p>
+      </section>
+    </TakeDropZone>
   );
 }

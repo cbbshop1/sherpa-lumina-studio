@@ -6,6 +6,23 @@ export default function ToolArtwork({ kind }: { kind: string }) {
       fill="none"
       aria-hidden="true"
     >
+      {kind === "chart" && (
+        <>
+          <path
+            d="M30 24H270M30 34H270M30 44H270M30 54H270M30 64H270"
+            stroke="currentColor"
+            opacity=".22"
+          />
+          {[70, 130, 190, 250].map((x, index) => (
+            <g key={x}>
+              <ellipse cx={x} cy={[34, 39, 44, 29][index]} rx="8" ry="5.5" fill="currentColor" />
+              <ellipse cx={x} cy={[54, 59, 59, 49][index]} rx="8" ry="5.5" fill="currentColor" opacity=".55" />
+            </g>
+          ))}
+          <path d="M122 84V92H258V84" stroke="currentColor" strokeWidth="2" />
+          <path d="M40 92H100" stroke="currentColor" strokeWidth="2" opacity=".4" />
+        </>
+      )}
       {kind === "piano" && (
         <>
           <path
@@ -124,6 +141,36 @@ export default function ToolArtwork({ kind }: { kind: string }) {
             stroke="currentColor"
             strokeWidth="2"
           />
+        </>
+      )}
+      {kind === "rhythm" && (
+        <>
+          {/* 7/8 grouped 2+2+3: big dots for strong, smaller for lighter. */}
+          {[3, 1, 2, 1, 2, 1, 1, 3, 1, 2, 1, 2, 1, 1].map((weight, i) => {
+            const group = i % 7 < 2 ? 0 : i % 7 < 4 ? 1 : 2;
+            const x = 34 + i * 17.5 + Math.floor(i / 7) * 8;
+            return (
+              <g key={i}>
+                <circle
+                  cx={x}
+                  cy={54}
+                  r={2.5 + weight * 3}
+                  fill="currentColor"
+                  opacity={0.3 + weight * 0.22}
+                />
+                <rect
+                  x={x - 6}
+                  y={78}
+                  width="12"
+                  height="12"
+                  rx="3"
+                  fill="currentColor"
+                  opacity={group % 2 ? 0.14 : 0.28}
+                />
+              </g>
+            );
+          })}
+          <path d="M25 94H280" stroke="currentColor" opacity=".2" />
         </>
       )}
       {kind === "studio" && (

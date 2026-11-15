@@ -1,11 +1,15 @@
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import GlobalMidiControls from "./GlobalMidiControls";
+import ShelfPanel from "./ShelfPanel";
+import WorkspaceAppearance from "./WorkspaceAppearance";
 const destinations = [
   { path: "/", label: "All tools" },
   { path: "/piano", label: "Piano" },
   { path: "/chords", label: "Chords" },
   { path: "/scales", label: "Scales" },
   { path: "/progressions", label: "Progressions" },
+  { path: "/rhythm", label: "Rhythm" },
+  { path: "/chart", label: "Chart" },
   { path: "/pitch-pipe", label: "Pitch & tone" },
   { path: "/studio", label: "Studio" },
 ];
@@ -53,6 +57,8 @@ const AppNavigation = () => {
               ))}
             </select>
           </label>
+          <WorkspaceAppearance />
+          <ShelfPanel />
           <a
             className="header-note clearing-return"
             href={

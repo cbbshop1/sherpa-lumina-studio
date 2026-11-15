@@ -15,3 +15,10 @@ test("upper C, octaves, inversions and external MIDI retain their actual registe
   assert.deepEqual(pianoSelection([64, 67, 72]).midiNotes, [64, 67, 72]);
   assert.deepEqual(pianoSelection([]).notes, []);
 });
+
+test("the lowest note is tried as the root first, and ninths are recognised", () => {
+  assert.equal(pianoSelection([62, 65, 69, 72]).name, "Dm7");
+  assert.equal(pianoSelection([60, 64, 67, 69]).name, "C6");
+  assert.equal(pianoSelection([64, 67, 72]).name, "C");
+  assert.equal(pianoSelection([60, 62, 64, 67, 70]).name, "C9");
+});
