@@ -36,7 +36,7 @@ export default function WhatNext({ scope, onAction, className = "" }: Props) {
   };
   return (
     <nav className={`what-next ${className}`} aria-label="What you could do next">
-      <span className="studio-eyebrow">WHAT NEXT?</span>
+      <span className="studio-eyebrow">Explore next</span>
       <ul>
         {steps.map((step) => (
           <li key={step.id}>

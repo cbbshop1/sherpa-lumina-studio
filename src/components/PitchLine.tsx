@@ -21,9 +21,9 @@ type Target = {
 
 const TOP = 12,
   BOTTOM = 24;
-const ON = "#8fd0c2",
-  NEAR = "#e7b17e",
-  OFF = "#d58070";
+const ON = "#ccb282",
+  NEAR = "#ad8d60",
+  OFF = "#88764e";
 
 /** Draws the sung pitch of a take against the notes the learner was aiming for. */
 export default function PitchLine({
@@ -133,13 +133,13 @@ export default function PitchLine({
       const aimed = isTarget(midi);
       if (aimed) {
         // The whole row is the note; the brighter stripe is "on it".
-        context.fillStyle = "#8fd0c214";
+        context.fillStyle = "#bba47c14";
         context.fillRect(GUTTER, top, WIDTH - GUTTER, rowHeight);
-        context.fillStyle = "#8fd0c226";
+        context.fillStyle = "#bba47c26";
         const stripe = (rowHeight * ON_NOTE_CENTS) / 100;
         context.fillRect(GUTTER, y(midi) - stripe, WIDTH - GUTTER, stripe * 2);
       }
-      context.strokeStyle = "#829a8428";
+      context.strokeStyle = "#bba47c28";
       context.lineWidth = 1;
       context.beginPath();
       context.moveTo(GUTTER, Math.round(top) + 0.5);
@@ -150,12 +150,12 @@ export default function PitchLine({
         aimed ||
         (labelEvery === 1 ? natural || !pitchClasses.length : midi % 12 === 0)
       ) {
-        context.fillStyle = aimed ? "#dff3ec" : "#839b7c";
+        context.fillStyle = aimed ? "#ccb282" : "#bba47c";
         context.font = `${aimed ? "bold " : ""}${Math.min(15, Math.max(10, rowHeight * 0.7))}px "Courier New", monospace`;
         context.fillText(noteName(midi), 8, y(midi));
       }
     }
-    context.fillStyle = "#839b7c";
+    context.fillStyle = "#bba47c";
     context.font = '11px "Courier New", monospace';
     context.textBaseline = "alphabetic";
     context.fillText("0 s", GUTTER, HEIGHT - 6);

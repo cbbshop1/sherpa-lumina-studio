@@ -65,6 +65,10 @@ export default function KeyRoom() {
   const [pace, setPace] = useState(1);
   const [running, setRunning] = useState<number | null>(null);
   const [saveName, setSaveName] = useState("");
+  const [bank, setBank] = useState<"key" | "secondary">("key");
+  const stepLane = useRef<HTMLOListElement>(null);
+  const revealAdded = useRef(false);
+
   const clock = useRef<ReturnType<typeof setInterval> | null>(null);
   const { root, mode, sevenths, steps } = draft;
   const chords = useMemo(
@@ -95,6 +99,16 @@ export default function KeyRoom() {
     if (!playing) stopClock();
   }, [playing]);
   useEffect(() => stopClock, []);
+
+  useEffect(() => {
+    if (revealAdded.current) {
+      stepLane.current?.lastElementChild?.scrollIntoView({ block: "nearest", inline: "nearest" });
+      revealAdded.current = false;
+    }
+  }, [steps.length]);
+  useEffect(() => {
+    if (running !== null) stepLane.current?.children[running]?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [running]);
 
   const changeKey = (nextRoot: string, nextMode: KeyMode) => {
     session.stop();
@@ -131,11 +145,13 @@ export default function KeyRoom() {
     stopClock();
     session.togglePlay({ name: chord.name, notes: chord.notes, kind: "chord" });
   };
-  const add = (chord: Step) =>
+  const add = (chord: Step) => {
+    revealAdded.current = true;
     setDraft((current) => ({
       ...current,
       steps: [...current.steps, { name: chord.name, notes: chord.notes }],
     }));
+  };
   const setSteps = (next: Step[]) => {
     session.stop();
     setDraft((current) => ({ ...current, steps: next }));
@@ -258,38 +274,9 @@ export default function KeyRoom() {
         </p>
       </div>
 
-      <div className="key-chords" role="group" aria-label={`Chords in ${keyName}`}>
-        {main.map(card)}
-      </div>
-      {extras.length > 0 && (
-        <div className="key-extras">
-          <span className="studio-eyebrow">ALSO USED IN MINOR</span>
-          <div className="key-chords">{extras.map(card)}</div>
-        </div>
-      )}
-
-      <div className="key-extras">
-        <span className="studio-eyebrow">CHORDS THAT POINT AT OTHER CHORDS</span>
-        <p className="key-pointer-note">
-          Each of these is the V7 of another chord in the key. The music leans
-          on that chord as if it were home for a moment, without ever changing
-          key.
-          {mode === "major"
-            ? " String them together and each seventh hands on to the next, all the way home."
-            : ""}
-        </p>
-        <div
-          className="key-chords key-pointers"
-          role="group"
-          aria-label="Sevenths that point at another chord"
-        >
-          {pointers.map(card)}
-        </div>
-      </div>
-
       <div className="key-progression" aria-label="Your progression">
         <div className="key-progression-head">
-          <span className="studio-eyebrow">YOUR PROGRESSION</span>
+          <span className="studio-eyebrow">Your progression</span>
           <div className="key-starters">
             <span>Start from</span>
             {STARTERS[mode].map((starter) => (
@@ -311,11 +298,11 @@ export default function KeyRoom() {
         </div>
         {steps.length === 0 ? (
           <p className="key-empty">
-            Nothing here yet. Add chords from the row above, or start from one
+            Nothing here yet. Add chords from the choices below, or start from one
             of the well-worn paths.
           </p>
         ) : (
-          <ol className="key-steps">
+          <ol className="key-steps" ref={stepLane} aria-label="Chords in your progression">
             {steps.map((step, index) => (
               <li key={index} data-now={running === index}>
                 <button
@@ -354,6 +341,13 @@ export default function KeyRoom() {
             ))}
           </ol>
         )}
+        {steps.length > 0 && <div className="key-scroll-controls">
+          <span>{steps.length} chords · scroll for more</span>
+          <div>
+            <button type="button" aria-label="Scroll progression left" onClick={() => stepLane.current?.scrollBy({left: -400})}><ArrowLeft size={16} /></button>
+            <button type="button" aria-label="Scroll progression right" onClick={() => stepLane.current?.scrollBy({left: 400})}><ArrowRight size={16} /></button>
+          </div>
+        </div>}
         <div className="key-transport">
           <button
             className={`key-play ${running !== null ? "on" : ""}`}
@@ -414,8 +408,46 @@ export default function KeyRoom() {
         </div>
       </div>
 
+      <div className="key-bank-switch" role="group" aria-label="Chord collection">
+        <button aria-pressed={bank === "key"} onClick={() => setBank("key")}>In this key</button>
+        <button aria-pressed={bank === "secondary"} onClick={() => setBank("secondary")}>Secondary dominants</button>
+      </div>
+      {bank === "key" ? <>
+      <div className="key-chords" role="group" aria-label={`Chords in ${keyName}`}>
+        {main.map(card)}
+      </div>
+      {extras.length > 0 && (
+        <div className="key-extras">
+          <span className="studio-eyebrow">ALSO USED IN MINOR</span>
+          <div className="key-chords">{extras.map(card)}</div>
+        </div>
+      )}
+
+      </> : <>
+      <div className="key-extras">
+        <span className="studio-eyebrow">CHORDS THAT POINT AT OTHER CHORDS</span>
+        <p className="key-pointer-note">
+          Each of these is the V7 of another chord in the key. The music leans
+          on that chord as if it were home for a moment, without ever changing
+          key.
+          {mode === "major"
+            ? " String them together and each seventh hands on to the next, all the way home."
+            : ""}
+        </p>
+        <div
+          className="key-chords key-pointers"
+          role="group"
+          aria-label="Sevenths that point at another chord"
+        >
+          {pointers.map(card)}
+        </div>
+      </div>
+
+      </>}
+
       <div className="key-lower">
-        <div className="key-map" aria-label="Where each chord usually leads">
+        <details className="key-map key-reference">
+          <summary>Full harmony reference</summary>
           <span className="studio-eyebrow">WHERE EACH CHORD LEADS</span>
           <ul>
             {shown.map((chord) => (
@@ -440,7 +472,7 @@ export default function KeyRoom() {
             These are habits, not rules. They are the paths most songs take,
             and breaking them on purpose is half the fun.
           </p>
-        </div>
+        </details>
         <div className="key-side">
           <div>
             <span className="studio-eyebrow">FROM OUTSIDE THE KEY</span>

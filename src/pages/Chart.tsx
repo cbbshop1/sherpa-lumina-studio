@@ -29,6 +29,7 @@ export default function ChartRoom() {
   const [error, setError] = useState("");
   const [naming, setNaming] = useState<"numerals" | "clock">("numerals");
   const [bpm, setBpm] = useState(96);
+  const [measureNumber, setMeasureNumber] = useState("1");
   const [heard, setHeard] = useState([true, true, true, true]);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState<number | null>(null);
@@ -251,28 +252,21 @@ export default function ChartRoom() {
               </div>
             </section>
 
-            {(fixes.length > 0 || chart.repairs.unevenBars > 0) && (
-              <p className="chart-repairs">
-                {fixes.length > 0 && (
-                  <>
-                    Tidied on the way in: {fixes.join(", ")}.{" "}
-                  </>
-                )}
-                {chart.repairs.unevenBars > 0 &&
-                  `${chart.repairs.unevenBars} bar${chart.repairs.unevenBars === 1 ? " doesn't" : "s don't"} add up in the file and ${chart.repairs.unevenBars === 1 ? "is" : "are"} marked with a ?. `}
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={chart.octaveTreble}
-                    onChange={(event) => {
-                      halt();
-                      setSaved({ ...saved!, lowerTop: event.target.checked });
-                    }}
-                  />{" "}
-                  Top staff sounds an octave lower
-                </label>
+            {chart.repairs.unevenBars > 0 && (
+              <p className="chart-warning" role="status">
+                {chart.repairs.unevenBars} {chart.repairs.unevenBars === 1 ? "bar needs" : "bars need"} review. Look for the underlined measure numbers marked with a ?.
               </p>
             )}
+            {fixes.length > 0 && <details className="chart-repairs">
+              <summary>Import adjustments</summary>
+              <p>Tidied on the way in: {fixes.join(", ")}.</p>
+            </details>}
+            <label className="chart-octave">
+              <input type="checkbox" checked={chart.octaveTreble} onChange={(event) => {
+                halt(); setSaved({ ...saved!, lowerTop: event.target.checked });
+              }} />
+              Top staff sounds an octave lower
+            </label>
 
             <section className="chart-controls" aria-label="Playback">
               <button
@@ -298,6 +292,15 @@ export default function ChartRoom() {
               >
                 From the top
               </button>
+              <form className="chart-measure" onSubmit={(event) => {
+                event.preventDefault();
+                const index = Math.max(0, Math.min(chart.bars.length - 1, Number(measureNumber) - 1));
+                if (Number.isInteger(index)) seek(reading.barStarts[index]);
+              }}>
+                <label htmlFor="chart-measure">Measure</label>
+                <input id="chart-measure" type="number" min={1} max={chart.bars.length} step={1} required value={measureNumber} onChange={(event) => setMeasureNumber(event.target.value)} />
+                <button type="submit">Go to measure</button>
+              </form>
               <label className="chart-tempo">
                 Tempo <span>{bpm}</span>
                 <input
@@ -337,7 +340,7 @@ export default function ChartRoom() {
             <p className="chart-hint">
               {naming === "clock"
                 ? `The barbershop clock: ${formatNote(reading.tonic)} is home at 12. Each hour is one more step around the circle of fifths, and the music walks back toward 12.`
-                : "Click any bar to play from there. Under each chord is its place in the key."}
+                : "Choose a measure or click the score to set your starting point, then press Play. Under each chord is its place in the key."}
             </p>
 
             <ChartStaff chart={chart} reading={reading} naming={naming} time={time} onSeek={seek} />

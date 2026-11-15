@@ -3,6 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      try {
+        document.documentElement.dataset.workspace =
+          localStorage.getItem("lumina-workspace-appearance") === "brown" ? "brown" : "midnight";
+      } catch { document.documentElement.dataset.workspace = "midnight"; }
+    </script>
     <link
       rel="icon"
       type="image/png"

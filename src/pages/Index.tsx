@@ -227,7 +227,6 @@ const Index = () => {
               </div>
               <p>{active?.description}</p>
             </div>
-            <WhatNext />
             {pathname === "/piano" ? (
               <>
                 <PianoStaff />
@@ -300,6 +299,7 @@ const Index = () => {
                 )}
               </div>
             )}
+            <WhatNext />
           </>
         )}
       </main>

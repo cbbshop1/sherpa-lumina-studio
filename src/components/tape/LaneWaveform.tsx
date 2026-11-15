@@ -74,16 +74,16 @@ export default function LaneWaveform({
       for (let beat = 0; beat <= bars * pulsesPerBar; beat++) {
         const x = Math.round((beat / (bars * pulsesPerBar)) * width) + 0.5;
         const downbeat = beat % pulsesPerBar === 0;
-        context.fillStyle = downbeat ? "#ffffff1c" : "#ffffff08";
+        context.fillStyle = downbeat ? "#ccb2821c" : "#ccb28208";
         context.fillRect(x, 0, 1, HEIGHT);
       }
-      context.fillStyle = "#ffffff10";
+      context.fillStyle = "#ccb28210";
       context.fillRect(0, HEIGHT / 2, width, 1);
       // The untouched take shows faintly behind, so effects are easy to see.
       if (original && processed && processed !== original)
-        drawTake(context, original, startSec, songSec, width, "#f2e9d830");
+        drawTake(context, original, startSec, songSec, width, "#ccb28230");
       if (processed)
-        drawTake(context, processed, startSec, songSec, width, "#e6b98b");
+        drawTake(context, processed, startSec, songSec, width, "#bba47c");
     };
     draw();
     const observer = new ResizeObserver(draw);

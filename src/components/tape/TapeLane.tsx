@@ -55,6 +55,7 @@ export default function TapeLane({
     <section
       className={`tape-lane ${armed ? "armed" : ""} ${heard ? "" : "silent"}`}
       aria-label={label}
+      data-recording={recording}
     >
       <div className="lane-head">
         <span className="lane-number">{index + 1}</span>
@@ -69,6 +70,7 @@ export default function TapeLane({
             disabled={busy}
             onClick={onArm}
             title="Record on this track"
+            aria-label={`${recording ? "Recording on" : "Arm"} ${track.name}`}
           >
             <Circle size={10} fill="currentColor" /> REC
           </button>
@@ -77,6 +79,7 @@ export default function TapeLane({
             aria-pressed={track.mute}
             onClick={() => onChange({ mute: !track.mute })}
             title="Mute"
+            aria-label={`Mute ${track.name}`}
           >
             M
           </button>
@@ -85,6 +88,7 @@ export default function TapeLane({
             aria-pressed={track.solo}
             onClick={() => onChange({ solo: !track.solo })}
             title="Solo"
+            aria-label={`Solo ${track.name}`}
           >
             S
           </button>

@@ -36,7 +36,11 @@ export default function ChartStaff({ chart, reading, naming, time, onSeek }: Pro
   useEffect(() => {
     const element = holder.current;
     if (!element) return;
-    const measure = () => setWidth(Math.max(320, element.clientWidth));
+    const measure = () => {
+      const style = getComputedStyle(element);
+      // Keep engraving readable on narrow screens; the holder scrolls when needed.
+      setWidth(Math.max(320, element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)));
+    };
     measure();
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);

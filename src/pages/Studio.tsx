@@ -574,7 +574,7 @@ export default function Studio() {
           <p>
             <b>Try this:</b> arm Soprano, sing a simple line, and stop. Then arm
             Alto and sing a harmony while Soprano plays back. Every take lands
-            on your shelf, so nothing is ever lost. You can drag any take from
+            on your shelf in this browser when storage is available. Download anything important. You can drag any take from
             the shelf onto a track, too.
           </p>
           <button

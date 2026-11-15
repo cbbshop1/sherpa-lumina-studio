@@ -30,7 +30,7 @@ export default function SoundScope({
       const w = element.width,
         h = element.height;
       ctx.clearRect(0, 0, w, h);
-      ctx.strokeStyle = "#33443d";
+      ctx.strokeStyle = "#071426";
       ctx.lineWidth = 1;
       for (let i = 1; i < 6; i++) {
         ctx.beginPath();
@@ -43,7 +43,7 @@ export default function SoundScope({
           analyser.getByteTimeDomainData(values);
           ctx.beginPath();
           ctx.lineWidth = 2.5;
-          ctx.strokeStyle = "#e9b580";
+          ctx.strokeStyle = "#bba47c";
           const count = Math.min(
             values.length,
             Math.round(analyser.context.sampleRate / 70),
@@ -71,7 +71,7 @@ export default function SoundScope({
             for (let j = start; j <= end; j++)
               value = Math.max(value, values[j]);
             const height = (value / 255) * (h - 12);
-            ctx.fillStyle = i < 55 ? "#91b7a4" : "#e9b580";
+            ctx.fillStyle = i < 55 ? "#bba47c" : "#bba47c";
             ctx.fillRect((i * w) / 100, h - height, w / 100 - 2, height);
           }
         }
