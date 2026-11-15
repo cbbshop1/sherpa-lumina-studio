@@ -6,7 +6,7 @@ import {
   type PointerEvent,
   type KeyboardEvent,
 } from "react";
-import { ChevronLeft, ChevronRight, Play, Radio, RotateCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, RotateCcw } from "lucide-react";
 import { useStudioSession } from "../context/StudioSession";
 import { useMidiSession } from "../context/MidiSession";
 import { NOTE_NAMES, formatNote, voiceNotes } from "../lib/noteSelection";
@@ -21,8 +21,6 @@ import {
   rootPosition,
 } from "../lib/inversions";
 import type { Selection } from "../context/StudioSession";
-import InstrumentSelector from "./InstrumentSelector";
-import MidiSettings from "./MidiSettings";
 
 const NATURALS = [0, 2, 4, 5, 7, 9, 11];
 type Mode = "single" | "chord" | "interval";
@@ -321,7 +319,6 @@ export default function PianoKeyboard() {
       ref={workspace}
     >
       <div className="piano-toolbar">
-        <InstrumentSelector selected={instrument} onSelect={setInstrument} />
         <div className="piano-mode" role="group" aria-label="Playing mode">
           {(["single", "chord", "interval"] as const).map((choice) => (
             <button
@@ -337,29 +334,6 @@ export default function PianoKeyboard() {
               {MODE_LABELS[choice]}
             </button>
           ))}
-        </div>
-        <div className="piano-midi">
-          <span>
-            <Radio size={13} />{" "}
-            {!midi.enabled
-              ? "MIDI muted"
-              : midi.selectedDevice
-                ? "MIDI connected"
-                : "MIDI"}
-          </span>
-          <MidiSettings
-            devices={midi.devices}
-            selectedDeviceId={midi.selectedDeviceId}
-            onSelectDevice={midi.selectDevice}
-            isSupported={midi.isSupported}
-            error={midi.error || midi.audioError || null}
-            onRequestAccess={midi.requestMidiAccess}
-            onPanic={midi.panic}
-            enabled={midi.enabled}
-            onToggleEnabled={midi.toggleEnabled}
-            onUnlock={midi.unlock}
-            audioReady={midi.audioReady}
-          />
         </div>
       </div>
       <div className="piano-instruction">

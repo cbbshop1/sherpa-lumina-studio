@@ -1,4 +1,3 @@
-import { useLocation } from "react-router-dom";
 import { useMidiSession } from "../context/MidiSession";
 import { useStudioSession } from "../context/StudioSession";
 import { midiNoteToName } from "../hooks/useMidiKeyboard";
@@ -9,16 +8,10 @@ import InstrumentSelector from "./InstrumentSelector";
 export default function GlobalMidiControls() {
   const midi = useMidiSession();
   const session = useStudioSession();
-  const { pathname } = useLocation();
-  const path = pathname.replace(/\/+$/, "");
-  if (path === "/piano") return null;
+  const connected = Boolean(midi.selectedDevice);
   return (
-    <div className="global-midi-strip" aria-label="MIDI keyboard controls">
+    <div className="global-midi-strip" aria-label="Instrument and MIDI keyboard">
       <div className="global-midi-inner">
-        <span className="midi-device-status">
-          <i className={midi.selectedDevice ? "connected" : ""} />
-          {midi.selectedDevice?.name || "MIDI keyboard"}
-        </span>
         <InstrumentSelector
           selected={session.instrument}
           onSelect={session.setInstrument}
@@ -29,19 +22,29 @@ export default function GlobalMidiControls() {
             .map((note) => formatNote(midiNoteToName(note).display))
             .join(" · ")}
         </span>
-        <button
-          className="midi-mute"
-          aria-pressed={midi.enabled}
-          onClick={midi.toggleEnabled}
-        >
-          {midi.enabled ? "MIDI on" : "MIDI muted"}
-        </button>
-        {midi.enabled && !midi.audioReady && (
-          <button onClick={() => void midi.unlock()}>Enable MIDI sound</button>
+        {connected && (
+          <>
+            <span className="midi-device-status">
+              <i className="connected" />
+              {midi.selectedDevice?.name}
+            </span>
+            <button
+              className="midi-mute"
+              aria-pressed={midi.enabled}
+              onClick={midi.toggleEnabled}
+            >
+              {midi.enabled ? "MIDI on" : "MIDI muted"}
+            </button>
+            {midi.enabled && !midi.audioReady && (
+              <button onClick={() => void midi.unlock()}>
+                Enable MIDI sound
+              </button>
+            )}
+            <button onClick={midi.panic} aria-label="All MIDI notes off">
+              All notes off
+            </button>
+          </>
         )}
-        <button onClick={midi.panic} aria-label="All MIDI notes off">
-          All notes off
-        </button>
         <MidiSettings
           devices={midi.devices}
           selectedDeviceId={midi.selectedDeviceId}
