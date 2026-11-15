@@ -1,4 +1,4 @@
-/* Accepted Midnight / muted brown studio direction. Keep these colors frozen. */
+/* Midnight / muted brown studio direction, with coral reserved for anything live: playing, recording, armed. */
 @font-face { font-family: "DM Sans"; src: url('/fonts/DM-Sans-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
 @font-face { font-family: "DM Sans"; src: url('/fonts/DM-Sans-Medium.ttf') format('truetype'); font-weight: 500; font-display: swap; }
 @font-face { font-family: "DM Sans"; src: url('/fonts/DM-Sans-Semibold.ttf') format('truetype'); font-weight: 600; font-display: swap; }
@@ -40,8 +40,6 @@ button, input, select, textarea { font-family: inherit; }
 .lumina-main-nav.tool-nav { order:3; flex-basis:100%; justify-content:center; }
 .lumina-main-nav.tool-nav a { font-size:14px; padding:10px 13px; border-radius:3px; }
 .lumina-main-nav a.active { background:#192e49; color:#ccb282; box-shadow:inset 0 -2px #ad8d60; }
-.workspace-appearance { margin-left:auto; padding:9px 12px; border:1px solid #88764e; border-radius:3px; font-size:13px; background:#101f36; color:#ccb282; min-height:40px; }
-.workspace-appearance[aria-pressed="true"] { background:#ad8d60; color:#071426; }
 .lumina-main { max-width:1320px; padding-top:30px; }
 .lumina-app h1 { font-family:"DM Sans","Segoe UI",sans-serif; font-weight:600; letter-spacing:-.035em; }
 .workspace-title { margin-bottom:24px; }
@@ -157,7 +155,6 @@ button, input, select, textarea { font-family: inherit; }
   .lumina-header-inner { padding:14px 18px; gap:10px; }
   .lumina-brand > span:last-child { font-size:25px; }
   .lumina-brand small { font-size:10px; }
-  .workspace-appearance { margin-left:auto; font-size:12px; }
   .tool-picker { order:3; width:100%; }
   .tool-picker select { min-width:0; }
   .lumina-main { padding-top:22px; }
@@ -178,3 +175,85 @@ button, input, select, textarea { font-family: inherit; }
   .key-steps li > div button,.chord-card-actions button { min-width:44px; min-height:44px; }
 }
 @media(prefers-reduced-motion:reduce) { .key-steps { scroll-behavior:auto; } }
+
+/* ── Legibility and live accent pass ─────────────────────────────────── */
+:root {
+  --studio-coral: #f0715c;      /* live things on midnight */
+  --studio-coral-deep: #b8402c; /* live marks sitting on tan */
+  --studio-ink: #071426;        /* text on tan */
+  --glass-bg: 216 54% 14%;      /* was a green-black left from the old design */
+}
+.glass-effect { background:#101f36; border-color:#ccb28220; }
+
+/* Tan surfaces carry midnight-blue text, never tan-on-tan. */
+.deck-badge { color:#ccb282; background:#071426; box-shadow:inset 0 1px #ccb28230,0 1px #07142630; }
+.cassette-label em { color:#19283c; }
+.deck-armed b { color:var(--studio-ink); font-weight:700; }
+.lcd-rec { opacity:.4; }
+.lcd-rec.on { color:var(--studio-coral-deep); opacity:1; }
+.deck-switch i { background:#5d4e39; }
+.deck-switch.on i { background:var(--studio-coral-deep); box-shadow:0 0 6px #b8402c99; }
+.piano-staff-caption { color:var(--studio-ink); }
+.piano-staff-caption :is(.studio-eyebrow,strong,span,p) { color:var(--studio-ink); }
+:root[data-workspace="brown"] .lumina-app :is(.key-progression,.sound-instrument,.tone-controls,.own-sound,.meter-picker,.chart-drop) :is(p,span,small,strong,em,label,h2,h3,li,summary,a,svg,.studio-eyebrow,.subtle-label,.panel-kicker,.control-footnote) { color:var(--studio-ink); }
+:root[data-workspace="brown"] .lumina-app :is(.key-progression,.sound-instrument,.tone-controls,.own-sound,.meter-picker,.chart-drop) :is(button,select,input:not([type="range"])) :is(span,small,strong,em,svg) { color:inherit; }
+:root[data-workspace="brown"] .lumina-app :is(.key-progression,.sound-instrument,.tone-controls,.own-sound,.meter-picker,.chart-drop) ::placeholder { color:#19283c; opacity:1; }
+:root[data-workspace="brown"] .lumina-app :is(.key-progression,.sound-instrument,.tone-controls,.own-sound,.meter-picker,.chart-drop) input[type="range"] { accent-color:var(--studio-ink); }
+:root[data-workspace="brown"] .lumina-app :is(.key-progression,.sound-instrument,.tone-controls,.own-sound,.meter-picker,.chart-drop) :is(.on,[aria-pressed="true"],.selected) { background:#071426; color:#ccb282; border-color:#071426; }
+:root[data-workspace="brown"] .lumina-app :is(.key-progression,.sound-instrument,.tone-controls,.own-sound,.meter-picker,.chart-drop) :is(.on,[aria-pressed="true"],.selected) :is(span,small,strong,em,svg) { color:#ccb282; }
+:root[data-workspace="brown"] .pitch-circle-track { border-color:#07142640; }
+:root[data-workspace="brown"] .key-steps > li { color:var(--studio-ink); }
+
+/* Coral means live: playing, recording, armed. */
+.status-light.on { background:var(--studio-coral); box-shadow:0 0 10px #f0715c80; }
+.lumina-app :is(.session-play.is-playing,.key-play.on,.groove-play.on,.chart-play.on,.target-hear.on) { background:var(--studio-coral); color:var(--studio-ink); border-color:var(--studio-coral); }
+.chord-card-actions.is-playing button:first-child { background:var(--studio-coral); color:var(--studio-ink); }
+.lumina-app :is(.piano-white-key,.piano-black-key)[data-sounding="true"] { background:var(--studio-coral); color:var(--studio-ink); }
+.lumina-pitch-circle button[data-sounding="true"],
+:root[data-workspace="brown"] .lumina-app .lumina-pitch-circle button[data-sounding="true"] { background:var(--studio-coral); color:var(--studio-ink); border-color:var(--studio-coral); }
+.key-steps > li[data-now="true"] { background:var(--studio-coral); box-shadow:inset 0 -3px #071426; }
+.lumina-app .key-chord[data-sounding="true"] { box-shadow:inset 0 -3px var(--studio-coral); }
+.groove-count.now { color:var(--studio-coral); }
+.groove-cell.now { outline-color:var(--studio-coral); }
+.staff-note.sounding :is(.staff-head,ellipse,path) { fill:var(--studio-coral-deep); }
+.deck-transport .deck-rec { color:var(--studio-coral-deep); }
+.deck-transport .deck-rec.down { color:var(--studio-ink); background:linear-gradient(180deg,#f0715c,#d9553f); }
+.lane-arm i, .lane-arm svg { color:var(--studio-coral); }
+.lane-arm.on { background:var(--studio-coral); color:var(--studio-ink); border-color:var(--studio-coral); }
+.lane-arm.on :is(i,svg) { color:var(--studio-ink); }
+.tape-lane.armed { border-color:#f0715c99; }
+.tape-lane[data-recording="true"] { box-shadow:inset 4px 0 var(--studio-coral); }
+.tape-lane[data-recording="true"] .lane-arm { background:var(--studio-coral); outline:2px solid var(--studio-coral); outline-offset:3px; }
+.lane-wave.is-recording { outline:1px solid #f0715c80; }
+.record-button { border-color:var(--studio-coral); }
+.record-button.recording, .recording-status.recording { color:var(--studio-coral); }
+.record-button.recording { background:var(--studio-coral); color:var(--studio-ink); }
+
+.lumina-app .key-progression .key-steps > li[data-now="true"] { background:var(--studio-coral); }
+.lumina-app .key-progression .key-steps > li[data-now="true"] :is(button,span,strong,small,svg) { background:transparent; color:var(--studio-ink); border-color:#07142640; }
+.lumina-app .deck-transport .deck-rec.down:disabled,
+.lumina-app .tape-lane[data-recording="true"] .lane-arm:disabled { opacity:1; }
+.lumina-app .tape-lane[data-recording="true"] .lane-arm { color:var(--studio-ink); }
+.lumina-app .tape-lane[data-recording="true"] .lane-arm :is(i,svg) { color:var(--studio-ink); }
+
+/* One strip on every page: the instrument first, MIDI only when it is in use. */
+.global-midi-inner { gap:10px; padding:6px 28px; min-height:48px; }
+.global-midi-inner > :last-child { margin-left:auto; }
+.midi-device-status i.connected { background:var(--studio-coral); box-shadow:0 0 8px #f0715c80; }
+.piano-toolbar { justify-content:center; }
+
+/* The player rests small until there is something to play. */
+.session-bar[data-idle="true"] .session-inner { min-height:52px; padding-top:8px; padding-bottom:8px; }
+.session-bar[data-idle="true"] :is(.session-selection .studio-eyebrow,.escape-label) { display:none; }
+.session-bar[data-idle="true"] .session-play { padding:7px 14px; opacity:.55; }
+
+/* The panel-color switch: two named choices, each with a swatch. */
+.workspace-appearance { display:inline-flex; align-items:center; gap:4px; margin-left:auto; padding:3px; border:1px solid #88764e80; border-radius:3px; background:#071426; color:#bba47c; font-size:12px; min-height:0; }
+.workspace-appearance > span { padding:0 6px 0 8px; font:700 11px "Courier New",monospace; letter-spacing:1.2px; text-transform:uppercase; }
+.workspace-appearance button { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:2px; color:#bba47c; font-size:13px; }
+.workspace-appearance button[aria-pressed="true"] { background:#192e49; color:#ccb282; box-shadow:inset 0 -2px #ad8d60; }
+.workspace-appearance i { width:12px; height:12px; border-radius:2px; }
+.workspace-appearance .swatch-blue { background:#192e49; box-shadow:inset 0 0 0 1px #ccb28280; }
+.workspace-appearance .swatch-tan { background:#c2a77a; }
+@media(max-width:760px) { .global-midi-inner { padding:6px 18px; } }
+@media(pointer:coarse) { .groove-cell { min-height:44px; } }

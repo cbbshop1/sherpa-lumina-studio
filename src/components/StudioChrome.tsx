@@ -22,7 +22,10 @@ export function SessionBar() {
   } = useStudioSession();
   return (
     <>
-      <div className="session-bar">
+      <div
+        className="session-bar"
+        data-idle={!selection.notes.length && !playing}
+      >
         <div className="session-inner">
           <div className="session-selection">
             <i className={playing ? "status-light on" : "status-light"} />

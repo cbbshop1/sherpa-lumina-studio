@@ -157,7 +157,6 @@ const PitchPipe = () => {
                   : "Same pitch. A different character."}
             </p>
           </div>
-          {!ownSound && <WhatNext />}
           <TargetPicker
             label={
               ownSound
@@ -424,6 +423,7 @@ const PitchPipe = () => {
             </div>
           )}
         </TakeDropZone>
+        {!ownSound && <WhatNext />}
       </main>
       {!ownSound && <SessionBar />}
     </div>
