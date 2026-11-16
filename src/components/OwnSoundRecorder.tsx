@@ -20,8 +20,13 @@ import PitchLine from "./PitchLine";
 import WhatNext from "./WhatNext";
 import TakeDropZone from "./TakeDropZone";
 import { formatNote } from "../lib/noteSelection";
+import VoiceGuideLink from "./VoiceGuideLink";
 
-export default function OwnSoundRecorder() {
+export default function OwnSoundRecorder({
+  initialMode,
+}: {
+  initialMode?: "pitch" | "waveform" | "spectrum";
+} = {}) {
   const { clip, setClip, takes, openTake } = useOwnSound();
   const { stop: stopPreview, selection } = useStudioSession();
   const [status, setStatus] = useState<CaptureStatus>("idle"),
@@ -35,8 +40,8 @@ export default function OwnSoundRecorder() {
   );
   const [playing, setPlaying] = useState(false),
     // With something to sing back, open on the picture that answers "how did I do?"
-    [mode, setMode] = useState<"pitch" | "waveform" | "spectrum">(() =>
-      selection.name ? "pitch" : "waveform",
+    [mode, setMode] = useState<"pitch" | "waveform" | "spectrum">(
+      () => initialMode ?? (selection.name ? "pitch" : "waveform"),
     );
   const [url, setUrl] = useState(""),
     [elapsed, setElapsed] = useState(0),
@@ -414,6 +419,7 @@ export default function OwnSoundRecorder() {
             }}
           />
         )}
+        <VoiceGuideLink />
         <p className="recording-footnote">
           Every take goes on your shelf (top right), where it stays in this
           browser until you delete it. Nothing is uploaded. Your microphone
