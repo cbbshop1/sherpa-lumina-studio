@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import VoiceGuideLink from "@/components/VoiceGuideLink";
 import { AudioLines, Radio, SlidersHorizontal, Waves } from "lucide-react";
 import AppNavigation from "../components/AppNavigation";
 import { SessionBar, useStopOnNavigation } from "../components/StudioChrome";
@@ -52,7 +53,9 @@ const PitchPipe = () => {
     view === "waveform" &&
     (params.get("source") === "microphone" ||
       (!params.has("source") && !!clip));
-  const [scope, setScope] = useState<"waveform" | "spectrum">("waveform");
+  const [scope, setScope] = useState<"waveform" | "spectrum">(() =>
+    params.get("scope") === "spectrum" ? "spectrum" : "waveform",
+  );
   const s = useStudioSession();
   useStopOnNavigation();
   const root = s.selection.notes[0] || "A";
@@ -202,7 +205,11 @@ const PitchPipe = () => {
             </div>
           )}
           {ownSound ? (
-            <OwnSoundRecorder />
+            <OwnSoundRecorder
+              initialMode={
+                params.get("scope") === "spectrum" ? "spectrum" : undefined
+              }
+            />
           ) : (
             <div className="sound-workspace">
               <section className="sound-instrument">
@@ -351,6 +358,7 @@ const PitchPipe = () => {
                         ? "The curve traces changes in air pressure over time. Switch waveforms to see how the shape changes."
                         : "Left to right: low to high frequencies. Taller bars mean more energy. Extra peaks reveal the harmonics that color a tone."}
                     </p>
+                    <VoiceGuideLink />
                   </>
                 )}
               </section>

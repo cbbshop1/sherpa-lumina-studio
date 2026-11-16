@@ -5289,3 +5289,29 @@ button.groove-count:hover {
   line-height: 1.55;
   color: #bba47c;
 }
+
+/* A quiet pointer from the Pitch & tone views to the voice guide on the Clearing. */
+.voice-guide-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #ccb28230;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #bba47c;
+}
+.voice-guide-link a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #ccb282;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.voice-guide-link a:hover {
+  color: #e8d3a8;
+}
