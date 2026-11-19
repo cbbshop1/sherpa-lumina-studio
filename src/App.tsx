@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import PitchPipe from "./pages/PitchPipe";
 import NotFound from "./pages/NotFound";
+import ClearingFooter from "./components/ClearingFooter";
 import { StudioSessionProvider } from "./context/StudioSession";
 import { MidiSessionProvider } from "./context/MidiSession";
 import { OwnSoundProvider } from "./context/OwnSoundSession";
@@ -77,6 +78,7 @@ const App = () => (
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              <ClearingFooter />
             </OwnSoundProvider>
           </MidiSessionProvider>
         </StudioSessionProvider>
