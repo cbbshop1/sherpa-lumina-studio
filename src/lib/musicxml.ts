@@ -17,7 +17,10 @@ export type ChartNote = {
   octave: number;
   tieStart: boolean;
   tieStop: boolean;
+  /** The first verse's syllable, kept for anything that only wants one line. */
   lyric?: string;
+  /** Every verse's syllable, by verse number (1 first). Gaps are empty strings. */
+  verses?: string[];
 };
 
 export type ChartBar = {
@@ -30,6 +33,8 @@ export type ChartBar = {
   uneven: boolean;
   /** A short opening bar, the pickup. */
   pickup: boolean;
+  /** A short bar that is short on purpose: it closes or opens a section at a double bar. */
+  partial?: boolean;
 };
 
 export type Chart = {
@@ -172,10 +177,26 @@ type Raw = ChartNote & { voice: string; staff: number; stemUp: boolean | null };
 /** One staff's worth of bars, each a list of notes tagged with their written voice. */
 function readStaves(part: XmlNode) {
   const staves: Raw[][][] = [];
-  const info = { fifths: 0, beats: 4, beatUnit: 4, clefDrop: [] as boolean[], numbers: [] as string[] };
+  const info = {
+    fifths: 0,
+    beats: 4,
+    beatUnit: 4,
+    clefDrop: [] as boolean[],
+    numbers: [] as string[],
+    /** The bar ends at a double bar, a final bar, or a repeat: a section edge. */
+    sectionEnd: [] as boolean[],
+  };
   let divisions = 1;
   children(part, "measure").forEach((measure, barIndex) => {
     info.numbers[barIndex] = measure.attrs.number ?? String(barIndex + 1);
+    info.sectionEnd[barIndex] = children(measure, "barline").some((line) => {
+      const style = textOf(line, "bar-style");
+      return (
+        (line.attrs.location ?? "right") === "right" &&
+        (/^(light-light|light-heavy|heavy-light|heavy-heavy|heavy)$/.test(style) ||
+          !!child(line, "repeat"))
+      );
+    });
     let position = 0,
       last = 0;
     for (const entry of measure.children) {
@@ -213,7 +234,15 @@ function readStaves(part: XmlNode) {
         const ties = children(entry, "tie").map((tie) => tie.attrs.type);
         const stem = textOf(entry, "stem");
         const staff = Number(textOf(entry, "staff") || 1) - 1;
-        const lyric = textOf(child(entry, "lyric"), "text");
+        // Each verse is its own <lyric>; a syllable split by an elision has several <text>s.
+        const verses: string[] = [];
+        children(entry, "lyric").forEach((line, order) => {
+          const verse = Math.max(1, Number(line.attrs.number) || order + 1);
+          const words = children(line, "text").map((piece) => piece.text.trim()).filter(Boolean).join("‿");
+          if (words) verses[verse - 1] = words;
+        });
+        for (let i = 0; i < verses.length; i++) verses[i] ??= "";
+        const lyric = verses.find(Boolean) ?? "";
         ((staves[staff] ??= [])[barIndex] ??= []).push({
           at: snap(at),
           length: snap(length),
@@ -224,6 +253,7 @@ function readStaves(part: XmlNode) {
           tieStart: ties.includes("start"),
           tieStop: ties.includes("stop"),
           lyric: lyric || undefined,
+          verses: verses.length ? verses : undefined,
           voice: textOf(entry, "voice") || "1",
           staff,
           stemUp: stem === "up" ? true : stem === "down" ? false : null,
@@ -277,15 +307,35 @@ function splitStaff(bars: Raw[][]) {
         down.push(sorted[sorted.length - 1]);
       }
     }
+    // A rest never keeps a sung note out of a part.
+    const sounding = (list: Raw[], note: Raw) =>
+      list.some(
+        (held) =>
+          held.midi !== null && held.at < note.at + note.length && note.at < held.at + held.length,
+      );
+    const place = (list: Raw[], note: Raw) => {
+      for (let i = list.length - 1; i >= 0; i--)
+        if (list[i].midi === null && overlaps([list[i]], note)) list.splice(i, 1);
+      list.push(note);
+      moved++;
+    };
     for (const note of strays) {
       if (note.midi === null) continue;
-      const preferUp = note.stemUp ?? true;
-      const target = preferUp
-        ? !overlaps(up, note) ? up : !overlaps(down, note) ? down : null
-        : !overlaps(down, note) ? down : !overlaps(up, note) ? up : null;
+      const order = (note.stemUp ?? true) ? [up, down] : [down, up];
+      const target = order.find((list) => !sounding(list, note));
       if (target) {
-        target.push(note);
-        moved++;
+        place(target, note);
+        continue;
+      }
+      // A stray carrying words is a sung note whose held neighbour was read too long:
+      // end the held note where this one begins.
+      if (note.lyric) {
+        const list = order[0];
+        const held = list.filter((n) => n.midi !== null && overlaps([n], note));
+        if (held.every((n) => n.at < note.at)) {
+          for (const n of held) n.length = snap(note.at - n.at);
+          place(list, note);
+        }
       }
     }
     // Within one part, a stack keeps its outer note.
@@ -293,12 +343,17 @@ function splitStaff(bars: Raw[][]) {
       const byStart = new Map<number, Raw>();
       for (const note of list) {
         const held = byStart.get(note.at);
-        if (
+        const wins =
           !held ||
           (held.midi === null && note.midi !== null) ||
-          (note.midi !== null && held.midi !== null && (top ? note.midi > held.midi : note.midi < held.midi))
-        )
-          byStart.set(note.at, note);
+          (note.midi !== null && held.midi !== null && (top ? note.midi > held.midi : note.midi < held.midi));
+        const [kept, lost] = wins ? [note, held] : [held, note];
+        // The outer note stays, and keeps the words of the note it replaced.
+        if (lost && !kept.lyric && lost.lyric) {
+          kept.lyric = lost.lyric;
+          kept.verses = lost.verses;
+        }
+        byStart.set(note.at, kept);
       }
       return [...byStart.values()].sort((a, b) => a.at - b.at);
     };
@@ -337,16 +392,26 @@ export function readChart(source: string, lowerTop?: boolean): Chart {
   const barLength = (info.beats * 4) / info.beatUnit;
   const count = info.numbers.length;
   // Rejoin bars the scanner cut in two at the end of a line.
-  const joined: { number: string; parts: ChartNote[][] }[] = [];
+  const joined: { number: string; parts: ChartNote[][]; edge: boolean; afterEdge: boolean }[] = [];
   let rejoined = 0;
   const lengthOf = (index: number) =>
     Math.max(...parts.map((part) => filled(part[index] ?? [])));
   for (let index = 0; index < count; index++) {
     const here = lengthOf(index);
     const next = index + 1 < count ? lengthOf(index + 1) : 0;
-    if (index > 0 && here > 0 && here < barLength && next > 0 && snap(here + next) === barLength) {
+    const sectionEdge = info.sectionEnd[index] === true;
+    if (
+      index > 0 &&
+      !sectionEdge &&
+      here > 0 &&
+      here < barLength &&
+      next > 0 &&
+      snap(here + next) === barLength
+    ) {
       joined.push({
         number: info.numbers[index],
+        edge: info.sectionEnd[index + 1] === true,
+        afterEdge: info.sectionEnd[index - 1] === true,
         parts: parts.map((part) => [
           ...part[index],
           ...part[index + 1].map((note) => ({ ...note, at: snap(note.at + here) })),
@@ -354,7 +419,13 @@ export function readChart(source: string, lowerTop?: boolean): Chart {
       });
       rejoined++;
       index++;
-    } else joined.push({ number: info.numbers[index], parts: parts.map((part) => part[index] ?? []) });
+    } else
+      joined.push({
+        number: info.numbers[index],
+        edge: sectionEdge,
+        afterEdge: index > 0 && info.sectionEnd[index - 1] === true,
+        parts: parts.map((part) => part[index] ?? []),
+      });
   }
   // A top staff that sits far above the bottom one was written an octave up.
   const sounding = (part: number) =>
@@ -372,12 +443,16 @@ export function readChart(source: string, lowerTop?: boolean): Chart {
     const lengths = four.filter((part) => part.length).map(filled);
     const longest = Math.max(0, ...lengths);
     const pickup = index === 0 && longest > 0 && longest < barLength;
+    // Songs end a verse on a short bar and start the chorus with a pickup.
+    const partial = !pickup && longest > 0 && longest < barLength && (bar.edge || bar.afterEdge);
+    const length = pickup || partial ? longest : barLength;
     return {
       number: bar.number,
       parts: four,
-      length: pickup ? longest : barLength,
+      length,
       pickup,
-      uneven: !pickup && lengths.some((length) => length !== barLength),
+      partial: partial || undefined,
+      uneven: lengths.some((each) => each !== length),
     };
   });
   const title =
