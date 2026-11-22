@@ -5315,3 +5315,49 @@ button.groove-count:hover {
 .voice-guide-link a:hover {
   color: #e8d3a8;
 }
+
+/* The Clearing's site footer (Clearing build only). The session bar is fixed to the
+   bottom of the screen, so the footer keeps room beneath its last line. */
+.lumina-app:has(+ .clearing-footer) {
+  padding-bottom: 24px;
+}
+.clearing-footer {
+  border-top: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 28px 24px calc(124px + env(safe-area-inset-bottom));
+}
+.clearing-footer-inner {
+  max-width: 1232px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.clearing-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+.clearing-footer a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 0.25em;
+}
+.clearing-footer a:hover {
+  color: hsl(var(--foreground));
+}
+.clearing-footer p {
+  margin: 0;
+}
+@media (max-width: 600px) {
+  .clearing-footer-inner {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
