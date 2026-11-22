@@ -159,6 +159,12 @@ export default function ChartRoom() {
           `${chart.repairs.rejoinedBars} bar${chart.repairs.rejoinedBars === 1 ? "" : "s"} split by the scan ${chart.repairs.rejoinedBars === 1 ? "was" : "were"} rejoined`,
         chart.repairs.movedNotes &&
           `${chart.repairs.movedNotes} stray note${chart.repairs.movedNotes === 1 ? "" : "s"} went back to ${chart.repairs.movedNotes === 1 ? "its part" : "their parts"}`,
+        chart.repairs.lengthenedNotes &&
+          `${chart.repairs.lengthenedNotes} note${chart.repairs.lengthenedNotes === 1 ? "" : "s"} missing a dot ${chart.repairs.lengthenedNotes === 1 ? "was" : "were"} held as long as the chord around ${chart.repairs.lengthenedNotes === 1 ? "it" : "them"}`,
+        chart.repairs.filledRests &&
+          `${chart.repairs.filledRests} missing rest${chart.repairs.filledRests === 1 ? " was" : "s were"} put back`,
+        chart.repairs.trimmedNotes &&
+          `${chart.repairs.trimmedNotes} note${chart.repairs.trimmedNotes === 1 ? "" : "s"} running past the barline ${chart.repairs.trimmedNotes === 1 ? "was" : "were"} cut to fit`,
       ].filter(Boolean)
     : [];
 

@@ -177,3 +177,149 @@ test("playback joins tied notes and keeps each part's notes in order", () => {
   assert.deepEqual(tenor.map((n) => [n.start, n.length]), [[0, 8]]);
   assert.equal(notes.filter((n) => n.part === 3).length, 2);
 });
+
+// ---- Scans of real charts: section edges, verses, and words on stray notes.
+
+/** One part of hand-written measures, for cases the score() helper can't express. */
+function rawScore(top: string[], bottom: string[], beats = 3) {
+  const attrs = (staff: 0 | 1) =>
+    `<attributes><divisions>2</divisions><key><fifths>0</fifths></key><time><beats>${beats}</beats><beat-type>4</beat-type></time><clef><sign>${staff ? "F" : "G"}</sign><line>${staff ? 4 : 2}</line><clef-octave-change>${staff ? 0 : -1}</clef-octave-change></clef></attributes>`;
+  const part = (bars: string[], staff: 0 | 1) =>
+    `<part id="P${staff + 1}">${bars.map((body, i) => `<measure number="${i + 1}">${i === 0 ? attrs(staff) : ""}${body}</measure>`).join("")}</part>`;
+  return `<?xml version="1.0"?><score-partwise version="4.0"><part-list><score-part id="P1"/><score-part id="P2"/></part-list>${part(top, 0)}${part(bottom, 1)}</score-partwise>`;
+}
+const n = (step: string, octave: number, beats: number, voice: number, stem: string, extra = "") =>
+  `<note><pitch><step>${step}</step><octave>${octave}</octave></pitch><duration>${beats * 2}</duration><voice>${voice}</voice><stem>${stem}</stem>${extra}</note>`;
+const rest = (beats: number, voice: number) =>
+  `<note><rest/><duration>${beats * 2}</duration><voice>${voice}</voice></note>`;
+const back = (beats: number) => `<backup><duration>${beats * 2}</duration></backup>`;
+const words = (...verses: string[]) =>
+  verses.map((text, i) => (text ? `<lyric number="${i + 1}"><text>${text}</text></lyric>` : "")).join("");
+const full = (step: string, octave: number, voice: number, stem: string, extra = "") => n(step, octave, 3, voice, stem, extra);
+const doubleBar = `<barline location="right"><bar-style>light-light</bar-style></barline>`;
+
+test("a short bar at a double bar and the pickup after it stay two bars", () => {
+  const two = (v1: string, v2: string, beats: number, end = "") =>
+    n(v1, 5, beats, 1, "up") + back(beats) + n(v2, 4, beats, 2, "down") + end;
+  const xml = rawScore(
+    [two("E", "C", 3), two("D", "B", 2, doubleBar), two("D", "B", 1), two("E", "C", 3)],
+    [two("G", "C", 3), two("G", "E", 2, doubleBar), two("G", "E", 1), two("G", "C", 3)],
+  );
+  const chart = readChart(xml);
+  assert.deepEqual(chart.bars.map((bar) => bar.number), ["1", "2", "3", "4"]);
+  assert.equal(chart.repairs.rejoinedBars, 0);
+  assert.deepEqual(chart.bars.map((bar) => bar.length), [3, 2, 1, 3]);
+  assert.equal(chart.bars[1].partial, true);
+  assert.equal(chart.bars[2].partial, true);
+  assert.equal(chart.repairs.unevenBars, 0);
+});
+
+test("a bar cut at a line end is still rejoined when no double bar is there", () => {
+  const two = (beats: number) => n("E", 5, beats, 1, "up") + back(beats) + n("C", 5, beats, 2, "down");
+  const xml = rawScore([two(3), two(2), two(1), two(3)], [two(3), two(2), two(1), two(3)]);
+  const chart = readChart(xml);
+  assert.equal(chart.repairs.rejoinedBars, 1);
+  assert.equal(chart.bars.length, 3);
+});
+
+test("every verse is kept, and an elided syllable keeps both words", () => {
+  const sung = n("C", 5, 3, 2, "down", words("love", "dream"));
+  const elided = n(
+    "C", 5, 3, 2, "down",
+    `<lyric number="1"><text>to</text><elision/><text>a</text></lyric>`,
+  );
+  const xml = rawScore(
+    [full("E", 5, 1, "up") + back(3) + sung, full("E", 5, 1, "up") + back(3) + elided],
+    [full("G", 3, 1, "up") + back(3) + full("C", 3, 2, "down"), full("G", 3, 1, "up") + back(3) + full("C", 3, 2, "down")],
+  );
+  const chart = readChart(xml);
+  assert.deepEqual(chart.bars[0].parts[1][0].verses, ["love", "dream"]);
+  assert.equal(chart.bars[0].parts[1][0].lyric, "love");
+  assert.equal(chart.bars[1].parts[1][0].lyric, "to‿a");
+});
+
+test("a stray note that carries words takes the place of a rest", () => {
+  // The lead rests on beat 2; the scanner put the sung note there in a third voice.
+  const top =
+    n("D", 5, 1, 1, "up") + n("D", 5, 2, 1, "up") + back(3) +
+    n("B", 4, 1, 2, "down") + rest(2, 2) + back(2) + n("A", 4, 1, 3, "down", words("And"));
+  const xml = rawScore([top], [full("G", 3, 1, "up") + back(3) + full("B", 2, 2, "down")]);
+  const lead = readChart(xml).bars[0].parts[1].filter((note) => note.midi !== null);
+  assert.deepEqual(lead.map((note) => [note.step, note.at, note.lyric ?? ""]), [
+    ["B", 0, ""],
+    ["A", 1, "And"],
+  ]);
+});
+
+test("a stray note with words ends a held note that the scan read too long", () => {
+  const top =
+    n("C", 5, 2, 1, "up") + n("E", 5, 1, 1, "up") + back(3) +
+    n("E", 4, 3, 2, "down", words("pid,")) + back(1) + n("F", 4, 1, 3, "down", words("Love"));
+  const xml = rawScore([top], [full("A", 3, 1, "up") + back(3) + full("A", 2, 2, "down")]);
+  const lead = readChart(xml).bars[0].parts[1];
+  assert.deepEqual(lead.map((note) => [note.step, note.at, note.length, note.lyric]), [
+    ["E", 0, 2, "pid,"],
+    ["F", 2, 1, "Love"],
+  ]);
+});
+
+test("when a stack keeps its outer note, the words of the inner one stay", () => {
+  // Two notes start together in the lower voice; only the lower one is kept, with the words.
+  const top = full("E", 5, 1, "up") + back(3) + full("C", 5, 2, "down", words("sto")) +
+    `<note><chord/><pitch><step>B</step><octave>4</octave></pitch><duration>6</duration><voice>2</voice><stem>down</stem></note>`;
+  const xml = rawScore([top], [full("G", 3, 1, "up") + back(3) + full("C", 3, 2, "down")]);
+  const lead = readChart(xml).bars[0].parts[1];
+  assert.equal(lead.length, 1);
+  assert.equal(lead[0].step, "B");
+  assert.equal(lead[0].lyric, "sto");
+});
+
+// ---- Bars a scan got almost right are evened out the way a singer would read them.
+
+test("a part a beat short of the chord the others hold gets its lost dot back", () => {
+  const top = full("E", 5, 1, "up") + back(3) + full("C", 5, 2, "down");
+  const bottom = full("A", 3, 1, "up") + back(3) + n("D", 3, 2, 2, "down"); // the bass lost its dot
+  const chart = readChart(rawScore([top], [bottom]));
+  assert.equal(chart.bars[0].parts[3][0].length, 3);
+  assert.equal(chart.repairs.lengthenedNotes, 1);
+  assert.equal(chart.bars[0].uneven, false);
+});
+
+test("a part that stops early, with nothing held around it, gets its rest", () => {
+  const top = n("E", 5, 2, 1, "up") + back(2) + n("C", 5, 2, 2, "down") + rest(1, 2);
+  const bottom = n("G", 3, 2, 1, "up") + back(2) + n("E", 3, 2, 2, "down");
+  const chart = readChart(rawScore([top], [bottom]));
+  const bass = chart.bars[0].parts[3];
+  assert.deepEqual(bass.map((note) => [note.midi === null ? "rest" : note.step, note.at, note.length]), [
+    ["E", 0, 2],
+    ["rest", 2, 1],
+  ]);
+  assert.equal(chart.repairs.filledRests, 3);
+  assert.equal(chart.bars[0].uneven, false);
+});
+
+test("a last note that runs past the barline is cut to fit", () => {
+  const top = full("E", 5, 1, "up") + back(3) + n("D", 5, 2, 2, "down") + n("D", 5, 2, 2, "down");
+  const bottom = full("G", 3, 1, "up") + back(3) + full("B", 2, 2, "down");
+  const chart = readChart(rawScore([top], [bottom]));
+  const lead = chart.bars[0].parts[1];
+  assert.deepEqual(lead.map((note) => [note.at, note.length]), [
+    [0, 2],
+    [2, 1],
+  ]);
+  assert.equal(chart.repairs.trimmedNotes, 1);
+});
+
+test("a part with no notes, or a bar where every part is short, stays flagged", () => {
+  // The tenor has no notes in the first bar (as in a scan that lost them); the lead does.
+  const chord = full("E", 5, 1, "up") + back(3) + full("C", 5, 2, "down");
+  const lower = full("G", 3, 1, "up") + back(3) + full("C", 3, 2, "down");
+  const empty = readChart(rawScore([full("C", 5, 2, "down"), chord], [lower, lower]));
+  assert.equal(empty.bars[0].parts[0].length, 0);
+  assert.equal(empty.bars[0].uneven, true);
+  const two = (step: string) => n(step, 5, 2, 1, "up") + back(2) + n("C", 5, 2, 2, "down");
+  const short = readChart(rawScore([full("E", 5, 1, "up") + back(3) + full("C", 5, 2, "down"), two("E"), full("E", 5, 1, "up") + back(3) + full("C", 5, 2, "down")],
+    [full("G", 3, 1, "up") + back(3) + full("C", 3, 2, "down"), n("G", 3, 2, 1, "up") + back(2) + n("C", 3, 2, 2, "down"), full("G", 3, 1, "up") + back(3) + full("C", 3, 2, "down")]));
+  assert.equal(short.bars[1].uneven, true);
+  assert.equal(short.repairs.filledRests, 0);
+});

@@ -29,6 +29,58 @@ type Props = {
 };
 
 type System = { first: number; last: number; unit: number; lead: number; x: number[] };
+type Words = { at: number; lines: string[] };
+
+const LYRIC_ROW = 16;
+/** Rough width of a syllable in the lyric font, so neighbours can be kept apart. */
+const wordWidth = (text: string) => text.length * 6.4 + 4;
+
+/**
+ * The words under each bar, gathered from every part. The part that sings most of the
+ * words wins where two parts carry a syllable at the same moment; the others fill gaps,
+ * so a phrase passed to another voice still shows. A bar that uses only one verse
+ * line writes it on the first row, so a scan that numbered a lone line "2" reads normally.
+ */
+function gatherWords(chart: Chart): Words[][] {
+  const counts = [0, 1, 2, 3].map(
+    (part) => chart.bars.flatMap((bar) => bar.parts[part]).filter((note) => note.lyric).length,
+  );
+  const order = [0, 1, 2, 3].sort((a, b) => counts[b] - counts[a]);
+  return chart.bars.map((bar) => {
+    const byStart = new Map<number, string[]>();
+    for (const part of order)
+      for (const note of bar.parts[part]) {
+        const lines = note.verses ?? (note.lyric ? [note.lyric] : []);
+        if (!lines.some(Boolean) || byStart.has(note.at)) continue;
+        byStart.set(note.at, lines);
+      }
+    const used = new Set<number>();
+    for (const lines of byStart.values()) lines.forEach((line, row) => line && used.add(row));
+    const single = used.size === 1 ? [...used][0] : -1;
+    return [...byStart.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([at, lines]) => ({ at, lines: single >= 0 ? [lines[single]] : lines.slice(0, 3) }));
+  });
+}
+
+/** How much wider than its beats a bar must be so its syllables don't run together. */
+function crowding(words: Words[], length: number, unit: number) {
+  let need = 1;
+  for (let i = 0; i < words.length; i++) {
+    const here = words[i],
+      next = words[i + 1];
+    const gap = (next ? next.at : length) - here.at;
+    if (gap <= 0) continue;
+    for (let row = 0; row < here.lines.length; row++) {
+      const a = here.lines[row] ?? "",
+        b = next?.lines[row] ?? "";
+      if (!a) continue;
+      const room = next ? (wordWidth(a) + wordWidth(b)) / 2 : wordWidth(a) / 2;
+      need = Math.max(need, room / (gap * unit));
+    }
+  }
+  return Math.min(3, need);
+}
 
 export default function ChartStaff({ chart, reading, naming, time, onSeek }: Props) {
   const holder = useRef<HTMLDivElement>(null);
@@ -51,6 +103,17 @@ export default function ChartStaff({ chart, reading, naming, time, onSeek }: Pro
   const keyWidth = Math.abs(chart.fifths) * 9 + (chart.fifths ? 6 : 0);
   // A narrow screen gets tighter spacing so at least two bars share a line.
   const UNIT = width < 560 ? 25 : BASE_UNIT;
+  const words = useMemo(() => gatherWords(chart), [chart]);
+  const verseRows = useMemo(
+    () => Math.max(1, ...words.flat().map((entry) => entry.lines.length)),
+    [words],
+  );
+  // Each bar's width in quarter notes, widened where syllables would collide.
+  const span = useMemo(
+    () => chart.bars.map((bar, index) => bar.length * crowding(words[index], bar.length, UNIT)),
+    [chart, words, UNIT],
+  );
+  const scale = (bar: number) => (chart.bars[bar].length ? span[bar] / chart.bars[bar].length : 1);
   const systems = useMemo(() => {
     const list: System[] = [];
     let first = 0;
@@ -58,13 +121,10 @@ export default function ChartStaff({ chart, reading, naming, time, onSeek }: Pro
       const lead = 52 + keyWidth + (first === 0 ? 24 : 0);
       const room = width - lead - 10;
       let last = first,
-        used = PAD + chart.bars[first].length * UNIT;
-      while (
-        last + 1 < chart.bars.length &&
-        used + PAD + chart.bars[last + 1].length * UNIT <= room
-      ) {
+        used = PAD + span[first] * UNIT;
+      while (last + 1 < chart.bars.length && used + PAD + span[last + 1] * UNIT <= room) {
         last++;
-        used += PAD + chart.bars[last].length * UNIT;
+        used += PAD + span[last] * UNIT;
       }
       const count = last - first + 1;
       const music = used - PAD * count;
@@ -75,23 +135,15 @@ export default function ChartStaff({ chart, reading, naming, time, onSeek }: Pro
       let at = lead;
       for (let bar = first; bar <= last; bar++) {
         x.push(at);
-        at += PAD + chart.bars[bar].length * unit;
+        at += PAD + span[bar] * unit;
       }
       x.push(at);
       list.push({ first, last, unit, lead, x });
       first = last + 1;
     }
     return list;
-  }, [chart, width, keyWidth, UNIT]);
+  }, [chart, width, keyWidth, UNIT, span]);
 
-  // Which part carries the words.
-  const wordsPart = useMemo(() => {
-    const counts = [0, 1, 2, 3].map(
-      (part) => chart.bars.flatMap((bar) => bar.parts[part]).filter((note) => note.lyric).length,
-    );
-    const most = Math.max(...counts);
-    return most ? counts.indexOf(most) : -1;
-  }, [chart]);
 
   const keyAlter = (step: string) =>
     chart.fifths > 0
@@ -108,7 +160,7 @@ export default function ChartStaff({ chart, reading, naming, time, onSeek }: Pro
         const start = reading.barStarts[system.first],
           end = reading.barStarts[system.last + 1];
         const xOf = (bar: number, at: number) =>
-          system.x[bar - system.first] + PAD + at * system.unit;
+          system.x[bar - system.first] + PAD + at * system.unit * scale(bar);
         const xAt = (when: number) => {
           if (when >= end) return system.x[system.x.length - 1];
           let bar = system.first;
@@ -233,14 +285,9 @@ export default function ChartStaff({ chart, reading, naming, time, onSeek }: Pro
                     )}
                     {note.tieStart && (
                       <path
-                        d={`M${x + 4} ${y + (up ? 7 : -7)} q ${(note.length * system.unit) / 2 - 4} ${up ? 8 : -8} ${note.length * system.unit - 8} 0`}
+                        d={`M${x + 4} ${y + (up ? 7 : -7)} q ${(note.length * system.unit * scale(bar)) / 2 - 4} ${up ? 8 : -8} ${note.length * system.unit - 8} 0`}
                         className="chart-flag"
                       />
-                    )}
-                    {note.lyric && staff * 2 + which === wordsPart && (
-                      <text x={x} y={TOP + 4 * G + 52} className="chart-lyric" textAnchor="middle">
-                        {note.lyric}
-                      </text>
                     )}
                   </g>,
                 );
@@ -248,6 +295,26 @@ export default function ChartStaff({ chart, reading, naming, time, onSeek }: Pro
             });
           }
         }
+
+        // The words, between the staves: one row per verse.
+        for (let bar = system.first; bar <= system.last; bar++)
+          words[bar].forEach((entry) =>
+            entry.lines.forEach(
+              (line, row) =>
+                line &&
+                marks.push(
+                  <text
+                    key={`w-${bar}-${entry.at}-${row}`}
+                    x={xOf(bar, entry.at)}
+                    y={TOP + 4 * G + (verseRows > 1 ? 44 : 52) + row * LYRIC_ROW}
+                    className="chart-lyric"
+                    textAnchor="middle"
+                  >
+                    {line}
+                  </text>,
+                ),
+            ),
+          );
 
         // Chord names, on two rows so close neighbours don't sit on each other.
         const edge = [0, 0];
