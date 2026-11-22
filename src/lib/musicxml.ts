@@ -50,7 +50,17 @@ export type Chart = {
   /** True when Lumina lowered the top staff itself because the scan lost the 8. */
   loweredTop: boolean;
   voices: [string, string, string, string];
-  repairs: { rejoinedBars: number; movedNotes: number; unevenBars: number };
+  repairs: {
+    rejoinedBars: number;
+    movedNotes: number;
+    /** A note one beat short of the chord the other parts hold, lengthened to match (a lost dot). */
+    lengthenedNotes: number;
+    /** A part that stopped before the barline, given the rest it was missing. */
+    filledRests: number;
+    /** A last note that ran past the barline, cut back to fit. */
+    trimmedNotes: number;
+    unevenBars: number;
+  };
 };
 
 // ---- A small, forgiving XML reader (no browser needed, so it can be tested).
@@ -367,6 +377,56 @@ const filled = (notes: ChartNote[]) =>
   notes.length ? snap(Math.max(...notes.map((note) => note.at + note.length))) : 0;
 
 /**
+ * Even out a bar the scanner got almost right. A scan often loses a dot or a
+ * small rest that is plainly on the page, so a part stops short of the barline.
+ * When at least one part fills the bar, the others are mended the way a singer
+ * would read the page: a note that starts with the others' held chord but stops
+ * a beat early takes their length; anything else short gets its missing rest;
+ * a last note that spills over the barline is cut back. A part with no notes,
+ * or a note that starts past the barline, is left alone and stays flagged.
+ */
+function evenOut(parts: ChartNote[][], length: number) {
+  const mended = { lengthened: 0, rests: 0, trimmed: 0 };
+  if (!parts.some((part) => part.length && filled(part) === length)) return { parts, mended };
+  const out = parts.map((part, index) => {
+    if (!part.length || part.some((note) => note.at >= length - 1e-6)) return part;
+    const end = filled(part);
+    if (end > length) {
+      mended.trimmed++;
+      return part.map((note) =>
+        note.at + note.length > length ? { ...note, length: snap(length - note.at) } : note,
+      );
+    }
+    if (end === length) return part;
+    const last = part.find((note) => snap(note.at + note.length) === end)!;
+    const held = parts.filter(
+      (other, at) =>
+        at !== index &&
+        other.some(
+          (note) => note.midi !== null && note.at === last.at && snap(note.at + note.length) === length,
+        ),
+    ).length;
+    if (last.midi !== null && held >= 2) {
+      mended.lengthened++;
+      return part.map((note) => (note === last ? { ...note, length: snap(length - note.at) } : note));
+    }
+    mended.rests++;
+    const rest: ChartNote = {
+      at: end,
+      length: snap(length - end),
+      midi: null,
+      step: "",
+      alter: 0,
+      octave: 0,
+      tieStart: false,
+      tieStop: false,
+    };
+    return [...part, rest];
+  });
+  return { parts: out, mended };
+}
+
+/**
  * `lowerTop` overrides Lumina's own guess about whether the top staff
  * sounds an octave below where it is written.
  */
@@ -436,23 +496,28 @@ export function readChart(source: string, lowerTop?: boolean): Chart {
     (lowerTop ?? (staves.length < 4 && sounding(1) - sounding(2) >= 10));
   const shift = (note: ChartNote): ChartNote =>
     note.midi === null ? note : { ...note, midi: note.midi - 12, octave: note.octave - 1 };
+  const mended = { lengthened: 0, rests: 0, trimmed: 0 };
   const bars: ChartBar[] = joined.map((bar, index) => {
-    const four = bar.parts.map((part, at) =>
-      lowered && at < 2 ? part.map(shift) : part,
-    ) as ChartBar["parts"];
-    const lengths = four.filter((part) => part.length).map(filled);
-    const longest = Math.max(0, ...lengths);
+    const shifted = bar.parts.map((part, at) => (lowered && at < 2 ? part.map(shift) : part));
+    const raw = shifted.filter((part) => part.length).map(filled);
+    const longest = Math.max(0, ...raw);
     const pickup = index === 0 && longest > 0 && longest < barLength;
     // Songs end a verse on a short bar and start the chorus with a pickup.
     const partial = !pickup && longest > 0 && longest < barLength && (bar.edge || bar.afterEdge);
     const length = pickup || partial ? longest : barLength;
+    const even = evenOut(shifted, length);
+    mended.lengthened += even.mended.lengthened;
+    mended.rests += even.mended.rests;
+    mended.trimmed += even.mended.trimmed;
+    const four = even.parts as ChartBar["parts"];
+    const lengths = four.filter((part) => part.length).map(filled);
     return {
       number: bar.number,
       parts: four,
       length,
       pickup,
       partial: partial || undefined,
-      uneven: lengths.some((each) => each !== length),
+      uneven: lengths.length < 4 || lengths.some((each) => each !== length),
     };
   });
   const title =
@@ -474,6 +539,9 @@ export function readChart(source: string, lowerTop?: boolean): Chart {
     repairs: {
       rejoinedBars: rejoined,
       movedNotes: moved,
+      lengthenedNotes: mended.lengthened,
+      filledRests: mended.rests,
+      trimmedNotes: mended.trimmed,
       unevenBars: bars.filter((bar) => bar.uneven).length,
     },
   };

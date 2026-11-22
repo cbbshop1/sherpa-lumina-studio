@@ -244,7 +244,7 @@ test("a stray note that carries words takes the place of a rest", () => {
     n("D", 5, 1, 1, "up") + n("D", 5, 2, 1, "up") + back(3) +
     n("B", 4, 1, 2, "down") + rest(2, 2) + back(2) + n("A", 4, 1, 3, "down", words("And"));
   const xml = rawScore([top], [full("G", 3, 1, "up") + back(3) + full("B", 2, 2, "down")]);
-  const lead = readChart(xml).bars[0].parts[1];
+  const lead = readChart(xml).bars[0].parts[1].filter((note) => note.midi !== null);
   assert.deepEqual(lead.map((note) => [note.step, note.at, note.lyric ?? ""]), [
     ["B", 0, ""],
     ["A", 1, "And"],
@@ -272,4 +272,54 @@ test("when a stack keeps its outer note, the words of the inner one stay", () =>
   assert.equal(lead.length, 1);
   assert.equal(lead[0].step, "B");
   assert.equal(lead[0].lyric, "sto");
+});
+
+// ---- Bars a scan got almost right are evened out the way a singer would read them.
+
+test("a part a beat short of the chord the others hold gets its lost dot back", () => {
+  const top = full("E", 5, 1, "up") + back(3) + full("C", 5, 2, "down");
+  const bottom = full("A", 3, 1, "up") + back(3) + n("D", 3, 2, 2, "down"); // the bass lost its dot
+  const chart = readChart(rawScore([top], [bottom]));
+  assert.equal(chart.bars[0].parts[3][0].length, 3);
+  assert.equal(chart.repairs.lengthenedNotes, 1);
+  assert.equal(chart.bars[0].uneven, false);
+});
+
+test("a part that stops early, with nothing held around it, gets its rest", () => {
+  const top = n("E", 5, 2, 1, "up") + back(2) + n("C", 5, 2, 2, "down") + rest(1, 2);
+  const bottom = n("G", 3, 2, 1, "up") + back(2) + n("E", 3, 2, 2, "down");
+  const chart = readChart(rawScore([top], [bottom]));
+  const bass = chart.bars[0].parts[3];
+  assert.deepEqual(bass.map((note) => [note.midi === null ? "rest" : note.step, note.at, note.length]), [
+    ["E", 0, 2],
+    ["rest", 2, 1],
+  ]);
+  assert.equal(chart.repairs.filledRests, 3);
+  assert.equal(chart.bars[0].uneven, false);
+});
+
+test("a last note that runs past the barline is cut to fit", () => {
+  const top = full("E", 5, 1, "up") + back(3) + n("D", 5, 2, 2, "down") + n("D", 5, 2, 2, "down");
+  const bottom = full("G", 3, 1, "up") + back(3) + full("B", 2, 2, "down");
+  const chart = readChart(rawScore([top], [bottom]));
+  const lead = chart.bars[0].parts[1];
+  assert.deepEqual(lead.map((note) => [note.at, note.length]), [
+    [0, 2],
+    [2, 1],
+  ]);
+  assert.equal(chart.repairs.trimmedNotes, 1);
+});
+
+test("a part with no notes, or a bar where every part is short, stays flagged", () => {
+  // The tenor has no notes in the first bar (as in a scan that lost them); the lead does.
+  const chord = full("E", 5, 1, "up") + back(3) + full("C", 5, 2, "down");
+  const lower = full("G", 3, 1, "up") + back(3) + full("C", 3, 2, "down");
+  const empty = readChart(rawScore([full("C", 5, 2, "down"), chord], [lower, lower]));
+  assert.equal(empty.bars[0].parts[0].length, 0);
+  assert.equal(empty.bars[0].uneven, true);
+  const two = (step: string) => n(step, 5, 2, 1, "up") + back(2) + n("C", 5, 2, 2, "down");
+  const short = readChart(rawScore([full("E", 5, 1, "up") + back(3) + full("C", 5, 2, "down"), two("E"), full("E", 5, 1, "up") + back(3) + full("C", 5, 2, "down")],
+    [full("G", 3, 1, "up") + back(3) + full("C", 3, 2, "down"), n("G", 3, 2, 1, "up") + back(2) + n("C", 3, 2, 2, "down"), full("G", 3, 1, "up") + back(3) + full("C", 3, 2, "down")]));
+  assert.equal(short.bars[1].uneven, true);
+  assert.equal(short.repairs.filledRests, 0);
 });
